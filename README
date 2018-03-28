@@ -1,0 +1,2 @@
+tradefed.sh run hostside/AndroidTest.xml --alt-dir $PATH_TO_CLIENT_APK --apk-dir $PATH_TO_BENCHMARK_APK_DIR
+Example of PATH_TO_CLIENT_APK: /path/to/master/out/target/product/taimen
