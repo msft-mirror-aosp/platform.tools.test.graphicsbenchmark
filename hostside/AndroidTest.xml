@@ -1,0 +1,8 @@
+<configuration description="Game benchmark test">
+    <target_preparer class="com.android.tradefed.targetprep.TestAppInstallSetup">
+        <option name="test-file-name" value="GraphicsBenchmarkTestCases.apk" />
+    </target_preparer>
+
+    <test class="com.android.tradefed.testtype.GraphicsBenchmarkHostsideController" />
+
+</configuration>
