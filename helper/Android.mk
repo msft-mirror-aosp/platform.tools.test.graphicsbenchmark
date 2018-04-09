@@ -18,18 +18,20 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := $(call all-java-files-under, src)
-
-LOCAL_MODULE := GfxBenchmarkTest
-
+LOCAL_SDK_VERSION := current
+LOCAL_MODULE := graphicsbenchmarkhelper
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_JAVA_LIBRARIES := tradefed graphicsbenchmarkhelper-host
+include $(BUILD_STATIC_JAVA_LIBRARY)
 
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := $(call all-java-files-under, src)
+LOCAL_MODULE := graphicsbenchmarkhelper-host
+LOCAL_MODULE_TAGS := optional
 LOCAL_COMPATIBILITY_SUITE := general-tests
 
 include $(BUILD_HOST_JAVA_LIBRARY)
-
--include tools/tradefederation/core/error_prone_rules.mk
 
 # Build all sub-directories
 include $(call all-makefiles-under,$(LOCAL_PATH))
