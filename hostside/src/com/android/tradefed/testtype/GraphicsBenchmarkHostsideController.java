@@ -1,6 +1,23 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.android.tradefed.testtype;
 
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
+import com.android.gfx.benchmark.ApkInfo;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
@@ -11,12 +28,14 @@ import com.android.tradefed.testtype.IRemoteTest;
 import com.android.tradefed.util.RunUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.junit.Test;
 import java.util.concurrent.TimeUnit;
+
+import org.junit.Test;
 
 public class GraphicsBenchmarkHostsideController implements IRemoteTest, IDeviceTest {
     // Package and class of the device side test.
@@ -49,10 +68,9 @@ public class GraphicsBenchmarkHostsideController implements IRemoteTest, IDevice
     @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
         // TODO: shard this.
-        for (Map.Entry<String, String> entry: testList.entrySet()) {
-            File apk = new File(mApkDir, entry.getValue());
-            getDevice().installPackage(apk, true);
-            runDeviceTests(PACKAGE, CLASS, entry.getKey());
+        for (ApkInfo apk : ApkInfo.values()) {
+            getDevice().installPackage(new File(mApkDir, apk.getFileName()), true);
+            runDeviceTests(PACKAGE, CLASS, "run[" + apk.name() + "]");
         }
     }
 
