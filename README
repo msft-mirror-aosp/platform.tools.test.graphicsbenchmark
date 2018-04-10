@@ -1,2 +1,10 @@
-tradefed.sh run hostside/AndroidTest.xml --alt-dir $PATH_TO_CLIENT_APK --apk-dir $PATH_TO_BENCHMARK_APK_DIR
-Example of PATH_TO_CLIENT_APK: /path/to/master/out/target/product/taimen
+
+Note: env setup requires slightly more than a normal Android build,
+so that the path gets adjusted for tradefed.sh:
+
+. build/envsetup.sh
+. build/make/envsetup.sh
+lunch 2				# generic aosp arm64 eng build
+mmma tools/tradefederation/core tools/test/graphicsbenchmark
+
+tradefed.sh run hostside/AndroidTest.xml --alt-dir $OUT --apk-dir $PATH_TO_BENCHMARK_APK_DIR

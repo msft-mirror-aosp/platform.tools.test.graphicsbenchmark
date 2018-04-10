@@ -21,7 +21,7 @@ LOCAL_SDK_VERSION := current
 
 LOCAL_PACKAGE_NAME := GraphicsBenchmarkTestCases
 
-LOCAL_STATIC_JAVA_LIBRARIES := android-support-test
+LOCAL_STATIC_JAVA_LIBRARIES := android-support-test graphicsbenchmarkhelper
 LOCAL_JAVA_LIBRARIES := android.test.runner.stubs
 
 LOCAL_COMPATIBILITY_SUITE := device-tests
