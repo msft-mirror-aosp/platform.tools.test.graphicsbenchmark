@@ -26,28 +26,16 @@ import com.android.tradefed.result.ITestInvocationListener;
 import com.android.tradefed.testtype.IDeviceTest;
 import com.android.tradefed.testtype.IRemoteTest;
 import com.android.tradefed.util.RunUtil;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 
 import java.io.File;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import org.junit.Test;
 
 public class GraphicsBenchmarkHostsideController implements IRemoteTest, IDeviceTest {
     // Package and class of the device side test.
     private static final String PACKAGE = "com.google.android.gfx.benchmark.test";
     private static final String CLASS = PACKAGE + ".GraphicsBenchmarkTest";
 
-    private static final Map<String, String> testList =
-            ImmutableMap.of(
-                    "testSniper3d", "Sniper3D_3242.apk",
-                    "testAfterpulse", "afterpulse-v1.9.0.apk");
-
-    static final String AJUR_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
+    private static final String AJUR_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
     private static final long DEFAULT_TEST_TIMEOUT_MS = 10 * 60 * 1000L; //10min
     private static final long DEFAULT_MAX_TIMEOUT_TO_OUTPUT_MS = 10 * 60 * 1000L; //10min
 
