@@ -23,14 +23,15 @@ import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.result.CollectingTestListener;
 import com.android.tradefed.result.ITestInvocationListener;
-import com.android.tradefed.testtype.IDeviceTest;
-import com.android.tradefed.testtype.IRemoteTest;
-import com.android.tradefed.util.RunUtil;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class GraphicsBenchmarkHostsideController implements IRemoteTest, IDeviceTest {
+public class GraphicsBenchmarkHostsideController implements IShardableTest, IDeviceTest {
     // Package and class of the device side test.
     private static final String PACKAGE = "com.google.android.gfx.benchmark.test";
     private static final String CLASS = PACKAGE + ".GraphicsBenchmarkTest";
@@ -40,6 +41,8 @@ public class GraphicsBenchmarkHostsideController implements IRemoteTest, IDevice
     private static final long DEFAULT_MAX_TIMEOUT_TO_OUTPUT_MS = 10 * 60 * 1000L; //10min
 
     private ITestDevice mDevice;
+    private List<ApkInfo> mApks = Arrays.asList(ApkInfo.values());
+
     @Override
     public void setDevice(ITestDevice device) {
         mDevice = device;
@@ -54,9 +57,28 @@ public class GraphicsBenchmarkHostsideController implements IRemoteTest, IDevice
     private String mApkDir;
 
     @Override
+    public Collection<IRemoteTest> split(int shardCountHint) {
+        List<IRemoteTest> shards = new ArrayList<>();
+        for(int i = 0; i < shardCountHint; i++) {
+            if (i >= mApks.size()) {
+                break;
+            }
+            List<ApkInfo> apkInfo = new ArrayList<>();
+            for(int j = i; j < mApks.size(); j += shardCountHint) {
+                apkInfo.add(mApks.get(j));
+            }
+            GraphicsBenchmarkHostsideController shard = new GraphicsBenchmarkHostsideController();
+            shard.mApks = apkInfo;
+            shard.mApkDir = mApkDir;
+
+            shards.add(shard);
+        }
+        return shards;
+    }
+
+    @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
-        // TODO: shard this.
-        for (ApkInfo apk : ApkInfo.values()) {
+        for (ApkInfo apk : mApks) {
             getDevice().installPackage(new File(mApkDir, apk.getFileName()), true);
             runDeviceTests(PACKAGE, CLASS, "run[" + apk.name() + "]");
         }
