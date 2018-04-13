@@ -22,20 +22,13 @@ import android.util.Log;
 
 import com.android.gfx.benchmark.ApkInfo;
 
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
-import java.io.IOException;
-import java.lang.InterruptedException;
-import java.lang.Iterable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @RunWith(Parameterized.class)
@@ -57,11 +50,11 @@ public class GraphicsBenchmarkTest {
     @Parameter(value = 1)
     public ApkInfo apk;
 
-    @Test public void run() throws IOException, InterruptedException {
+    @Test public void run() throws InterruptedException {
         startApp(apk);
     }
 
-    private void startApp(ApkInfo app) throws IOException, InterruptedException {
+    private void startApp(ApkInfo app) throws InterruptedException {
         Log.d(TAG, "Launching " + app.getPackageName());
 
         // TODO: Need to support passing arguments to intents.
