@@ -16,7 +16,12 @@
 
 package com.google.android.gfx.benchmark.test;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.test.InstrumentationRegistry;
 import android.util.Log;
 
@@ -28,11 +33,14 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 @RunWith(Parameterized.class)
 public class GraphicsBenchmarkTest {
+    public static final String INTENT_ACTION = "com.android.gfx.benchmark.START";
+
     private static final String TAG = "GraphicsBenchmarkTest";
 
     @Parameters(name = "{0}")
@@ -50,11 +58,18 @@ public class GraphicsBenchmarkTest {
     @Parameter(value = 1)
     public ApkInfo apk;
 
-    @Test public void run() throws InterruptedException {
+    private Handler mHandler;
+
+    @Test public void run()
+            throws IntentFilter.MalformedMimeTypeException {
         startApp(apk);
     }
 
-    private void startApp(ApkInfo app) throws InterruptedException {
+    private void startApp(ApkInfo app) throws IntentFilter.MalformedMimeTypeException {
+        Looper.prepare();
+        mHandler = new Handler();
+
+        registerReceiver();
         Log.d(TAG, "Launching " + app.getPackageName());
 
         // TODO: Need to support passing arguments to intents.
@@ -62,6 +77,20 @@ public class GraphicsBenchmarkTest {
                 InstrumentationRegistry.getContext().getPackageManager()
                     .getLaunchIntentForPackage(app.getPackageName());
         InstrumentationRegistry.getContext().startActivity(intent);
-        Thread.sleep(10000);
+        Handler handler = new Handler();
+        handler.postDelayed(() -> handler.getLooper().quit(), 15000);
+        Looper.loop();
+    }
+
+    private void registerReceiver() throws IntentFilter.MalformedMimeTypeException {
+        BroadcastReceiver br = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Log.d(TAG, "Received intent");
+                mHandler.getLooper().quit();
+            }
+        };
+        IntentFilter intentFilter = new IntentFilter(INTENT_ACTION, "text/plain");
+        InstrumentationRegistry.getContext().registerReceiver(br, intentFilter);
     }
 }
