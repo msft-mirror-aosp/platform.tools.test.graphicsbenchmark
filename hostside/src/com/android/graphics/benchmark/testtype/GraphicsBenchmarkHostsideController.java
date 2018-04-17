@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package com.android.tradefed.testtype;
+package com.android.graphics.benchmark.testtype;
 
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
-import com.android.gfx.benchmark.ApkInfo;
+import com.android.graphics.benchmark.ApkInfo;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.result.CollectingTestListener;
 import com.android.tradefed.result.ITestInvocationListener;
+import com.android.tradefed.testtype.IDeviceTest;
+import com.android.tradefed.testtype.IRemoteTest;
+import com.android.tradefed.testtype.IShardableTest;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -33,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 public class GraphicsBenchmarkHostsideController implements IShardableTest, IDeviceTest {
     // Package and class of the device side test.
-    private static final String PACKAGE = "com.google.android.gfx.benchmark.test";
+    private static final String PACKAGE = "com.android.graphics.benchmark.device";
     private static final String CLASS = PACKAGE + ".GraphicsBenchmarkTest";
 
     private static final String AJUR_RUNNER = "android.support.test.runner.AndroidJUnitRunner";

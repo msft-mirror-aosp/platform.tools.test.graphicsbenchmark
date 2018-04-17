@@ -4,6 +4,6 @@
         <option name="test-file-name" value="GraphicsBenchmarkTestCases.apk" />
     </target_preparer>
 
-    <test class="com.android.tradefed.testtype.GraphicsBenchmarkHostsideController" />
+    <test class="com.android.graphics.benchmark.testtype.GraphicsBenchmarkHostsideController" />
 
 </configuration>
