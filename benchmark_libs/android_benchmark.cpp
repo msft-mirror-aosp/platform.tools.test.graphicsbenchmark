@@ -32,7 +32,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
 
 namespace android {
 
-static const char* const INTENT_START = "com.android.gfx.benchmark.START";
+static const char* const INTENT_START = "com.android.graphics.benchmark.START";
 
 static JNIEnv* getJniEnv() {
     if (sJniEnv == nullptr) {
