@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.gfx.benchmark;
+package com.android.graphics.benchmark;
 
 public enum ApkInfo {
     SNIPER_3D("Sniper3D_3242.apk", "com.fungames.sniper3d"),

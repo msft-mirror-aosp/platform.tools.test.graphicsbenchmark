@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.android.gfx.benchmark.test;
+package com.android.graphics.benchmark.device;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -25,7 +25,7 @@ import android.os.Looper;
 import android.support.test.InstrumentationRegistry;
 import android.util.Log;
 
-import com.android.gfx.benchmark.ApkInfo;
+import com.android.graphics.benchmark.ApkInfo;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,13 +33,12 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 @RunWith(Parameterized.class)
 public class GraphicsBenchmarkTest {
-    public static final String INTENT_ACTION = "com.android.gfx.benchmark.START";
+    public static final String INTENT_ACTION = "com.android.graphics.benchmark.START";
 
     private static final String TAG = "GraphicsBenchmarkTest";
 

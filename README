@@ -13,4 +13,4 @@ mmma tools/tradefederation/core tools/test/graphicsbenchmark
 Incremental build + run, from tools/test/graphicsbenchmark dir:
 
 mma
-tradefed.sh run hostside/AndroidTest.xml --alt-dir $OUT --apk-dir $PATH_TO_BENCHMARK_APK_DIR
+tradefed.sh run AndroidTest.xml --alt-dir $OUT --apk-dir $PATH_TO_BENCHMARK_APK_DIR
