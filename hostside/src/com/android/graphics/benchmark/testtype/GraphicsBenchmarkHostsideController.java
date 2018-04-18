@@ -17,6 +17,7 @@
 package com.android.graphics.benchmark.testtype;
 
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
+import com.android.tradefed.result.TestDescription;
 import com.android.graphics.benchmark.ApkInfo;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
@@ -31,7 +32,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class GraphicsBenchmarkHostsideController implements IShardableTest, IDeviceTest {
@@ -81,10 +84,23 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
 
     @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
+        Map<String, String> runMetrics = new HashMap<>();
+        listener.testRunStarted("graphicsbenchmark", mApks.size());
+
         for (ApkInfo apk : mApks) {
             getDevice().installPackage(new File(mApkDir, apk.getFileName()), true);
+
+            // TODO: Migrate to TF TestDescription when available
+            TestDescription identifier = new TestDescription(CLASS, "run[" + apk.name() + "]");
+            Map<String, String> testMetrics = new HashMap<>();
+            // TODO: Populate metrics
+
+            listener.testStarted(identifier);
             runDeviceTests(PACKAGE, CLASS, "run[" + apk.name() + "]");
+            listener.testEnded(identifier, testMetrics);
         }
+
+        listener.testRunEnded(0, runMetrics);
     }
 
     // TODO: Migrate to use BaseHostJUnit4Test when available.
