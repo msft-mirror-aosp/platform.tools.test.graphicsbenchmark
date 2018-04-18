@@ -159,6 +159,8 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             GraphicsBenchmarkMetricCollector.setDeviceResultData(resultData);
 
             listener.testRunEnded(0, runMetrics);
+
+            getDevice().uninstallPackage(apk.getPackageName());
         }
     }
 
