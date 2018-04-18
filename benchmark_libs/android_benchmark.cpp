@@ -17,8 +17,9 @@
 #include "android_benchmark.h"
 #include <jni.h>
 #include <android/log.h>
+#include <time.h>
 
-#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "AndroidGraphicsBenchmark", __VA_ARGS__))
+#define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, "AndroidGraphicsBenchmark", __VA_ARGS__))
 
 static JavaVM* sJavaVm = nullptr;
 static JNIEnv* sJniEnv = nullptr;
@@ -41,8 +42,15 @@ static JNIEnv* getJniEnv() {
     return sJniEnv;
 }
 
+// Convert timespec to milliseconds.
+long timespecToMs(timespec spec) {
+    return spec.tv_sec * 1000l + spec.tv_nsec / 1000000l;
+}
+
 // Create an Intent jobject in Java.
 static jobject createIntent() {
+    struct timespec spec;
+    clock_gettime(CLOCK_MONOTONIC, &spec);
     JNIEnv* env = getJniEnv();
     jclass intentClass = env->FindClass("android/content/Intent");
     jmethodID constructor = env->GetMethodID(intentClass, "<init>", "(Ljava/lang/String;)V");
@@ -53,6 +61,16 @@ static jobject createIntent() {
                 "setType",
                 "(Ljava/lang/String;)Landroid/content/Intent;");
     env->CallObjectMethod(intent, set_type, env->NewStringUTF("text/plain"));
+    jmethodID put_extra =
+            env->GetMethodID(
+                intentClass,
+                "putExtra",
+                "(Ljava/lang/String;J)Landroid/content/Intent;");
+
+    long timestamp = timespecToMs(spec);
+    env->CallObjectMethod(intent, put_extra, env->NewStringUTF("timestamp"), timestamp);
+
+    LOGD("Created intent %s at %ld", INTENT_START, timestamp);
     return intent;
 }
 
@@ -66,7 +84,6 @@ public:
 
 
 void AndroidGraphicsBenchmark::Impl::startBenchmark(jobject context) {
-    LOGI("startBenchmark");
     JNIEnv* env = getJniEnv();
     jclass contextClass = env->FindClass("android/content/Context");
     jmethodID method =

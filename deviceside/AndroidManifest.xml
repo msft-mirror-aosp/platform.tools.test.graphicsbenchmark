@@ -4,6 +4,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.android.graphics.benchmark.device">
     <uses-sdk android:minSdkVersion="14" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <instrumentation
       android:name="android.support.test.runner.AndroidJUnitRunner"
