@@ -16,23 +16,28 @@
 
 package com.android.graphics.benchmark;
 
-public enum ApkInfo {
-    SNIPER_3D("Sniper3D_3242.apk", "com.fungames.sniper3d"),
-    AFTERPULSE("afterpulse-v1.9.0.apk", "com.dle.afterpulse");
+public class ApkInfo {
+    public static final String APK_LIST_LOCATION = "/sdcard/benchmark/apk-info.xml";
 
-    private String fileName;
-    private String packageName;
+    private String mName;
+    private String mFileName;
+    private String mPackageName;
 
-    ApkInfo(String fileName, String packageName) {
-        this.fileName = fileName;
-        this.packageName = packageName;
+    public ApkInfo(String name, String fileName, String packageName) {
+        this.mName = name;
+        this.mFileName = fileName;
+        this.mPackageName = packageName;
+    }
+
+    public String getName() {
+        return mName;
     }
 
     public String getFileName() {
-        return fileName;
+        return mFileName;
     }
 
     public String getPackageName() {
-        return packageName;
+        return mPackageName;
     }
 }
