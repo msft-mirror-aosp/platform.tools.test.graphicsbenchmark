@@ -33,6 +33,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,17 +59,18 @@ public class GraphicsBenchmarkTest {
     public ApkInfo apk;
 
     private Handler mHandler;
+    private MetricsReporter mReport = new MetricsReporter();
 
-    @Test public void run()
-            throws IntentFilter.MalformedMimeTypeException {
+    @Test public void run() throws IntentFilter.MalformedMimeTypeException, IOException {
         startApp(apk);
     }
 
-    private void startApp(ApkInfo app) throws IntentFilter.MalformedMimeTypeException {
+    private void startApp(ApkInfo app) throws IntentFilter.MalformedMimeTypeException, IOException {
         Looper.prepare();
         mHandler = new Handler();
 
         registerReceiver();
+        mReport.begin(app.name());
         Log.d(TAG, "Launching " + app.getPackageName());
 
         // TODO: Need to support passing arguments to intents.
@@ -76,17 +78,18 @@ public class GraphicsBenchmarkTest {
                 InstrumentationRegistry.getContext().getPackageManager()
                     .getLaunchIntentForPackage(app.getPackageName());
         InstrumentationRegistry.getContext().startActivity(intent);
-        Handler handler = new Handler();
-        handler.postDelayed(() -> handler.getLooper().quit(), 15000);
+        mHandler.postDelayed(() -> mHandler.getLooper().quit(), 10000);
         Looper.loop();
+        mReport.end();
     }
 
     private void registerReceiver() throws IntentFilter.MalformedMimeTypeException {
         BroadcastReceiver br = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                Log.d(TAG, "Received intent");
-                mHandler.getLooper().quit();
+                long timestamp = intent.getLongExtra("timestamp", 0);
+                Log.d(TAG, "Received intent at " + timestamp);
+                mReport.startLoop(timestamp);
             }
         };
         IntentFilter intentFilter = new IntentFilter(INTENT_ACTION, "text/plain");
