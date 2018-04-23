@@ -4,6 +4,8 @@
         <option name="test-file-name" value="GraphicsBenchmarkTestCases.apk" />
     </target_preparer>
 
+    <metrics_collector class="com.android.graphics.benchmark.metric.GraphicsBenchmarkMetricCollector" />
+
     <test class="com.android.graphics.benchmark.testtype.GraphicsBenchmarkHostsideController" />
 
 </configuration>
