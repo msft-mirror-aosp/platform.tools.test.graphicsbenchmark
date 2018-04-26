@@ -31,6 +31,8 @@ import com.android.tradefed.testtype.IShardableTest;
 
 import com.google.common.io.ByteStreams;
 
+import org.xml.sax.SAXException;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -43,6 +45,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 public class GraphicsBenchmarkHostsideController implements IShardableTest, IDeviceTest {
     // Package and class of the device side test.
@@ -129,9 +133,8 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         if (mApkInfoFileName != null) {
             mApkInfoFile = new File(mApkInfoFileName);
         } else {
-            try {
-                String resource = "/com/android/graphics/benchmark/apk-info.xml";
-                InputStream inputStream = ApkInfo.class.getResourceAsStream(resource);
+            String resource = "/com/android/graphics/benchmark/apk-info.xml";
+            try(InputStream inputStream = ApkInfo.class.getResourceAsStream(resource)) {
                 if (inputStream == null) {
                     throw new FileNotFoundException("Unable to find resource: " + resource);
                 }
@@ -144,10 +147,10 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
                 throw new RuntimeException(e);
             }
         }
-        ApkListXmlParser parser = new ApkListXmlParser(mApkInfoFile);
+        ApkListXmlParser parser = new ApkListXmlParser();
         try {
-            mApks = parser.parse();
-        } catch (Exception e) {
+            mApks = parser.parse(mApkInfoFile);
+        } catch (IOException | ParserConfigurationException | SAXException e) {
             throw new RuntimeException(e);
         }
     }
