@@ -52,8 +52,8 @@ public class GraphicsBenchmarkTest {
     public static Iterable<Object[]> data()
             throws ParserConfigurationException, SAXException, IOException {
         List<Object[]> params = new ArrayList<>();
-        ApkListXmlParser parser = new ApkListXmlParser(new File(ApkInfo.APK_LIST_LOCATION));
-        List<ApkInfo> apks = parser.parse();
+        ApkListXmlParser parser = new ApkListXmlParser();
+        List<ApkInfo> apks = parser.parse(new File(ApkInfo.APK_LIST_LOCATION));
         for (ApkInfo apk : apks) {
             params.add(new Object[] { apk.getName(), apk });
         }

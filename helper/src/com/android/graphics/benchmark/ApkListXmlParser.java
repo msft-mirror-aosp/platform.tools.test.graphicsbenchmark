@@ -23,7 +23,9 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,17 +37,23 @@ import javax.xml.parsers.ParserConfigurationException;
  * Parser to read apk-info.xml.
  */
 public class ApkListXmlParser {
-    private File mFile;
 
-    public ApkListXmlParser(File file) {
-        this.mFile = file;
+    public ApkListXmlParser() {
     }
 
-    public List<ApkInfo> parse() throws IOException, ParserConfigurationException, SAXException {
+    public List<ApkInfo> parse(File file)
+            throws IOException, ParserConfigurationException, SAXException {
+        try (InputStream is = new FileInputStream(file)) {
+            return parse(is);
+        }
+    }
+
+    public List<ApkInfo> parse(InputStream inputStream)
+            throws IOException, ParserConfigurationException, SAXException {
         // TODO: Need error checking.
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder db = dbf.newDocumentBuilder();
-        Document doc = db.parse(mFile);
+        Document doc = db.parse(inputStream);
         doc.getDocumentElement().normalize();
         NodeList nodes = doc.getElementsByTagName("apk");
         List<ApkInfo> apks = new ArrayList<>();
@@ -53,14 +61,33 @@ public class ApkListXmlParser {
             Node node = nodes.item(i);
             if (node.getNodeType() == Node.ELEMENT_NODE) {
                 Element element = (Element) node;
-                apks.add(
-                        new ApkInfo(
-                                getElement(element, "name"),
-                                getElement(element, "fileName"),
-                                getElement(element, "packageName")));
+                apks.add(createApkInfo(element));
             }
         }
         return apks;
+    }
+
+    private ApkInfo createApkInfo(Element element) {
+        List<ApkInfo.Argument> args = new ArrayList<>();
+        NodeList argsNodeList = element.getElementsByTagName("args");
+        if (argsNodeList.getLength() > 0) {
+            NodeList children = argsNodeList.item(0).getChildNodes();
+            for (int j = 0; j < children.getLength(); j++) {
+                Node argNode = children.item(j);
+                if (argNode.getNodeType() != Node.ELEMENT_NODE) {
+                    continue;
+                }
+                Element argElement = (Element) argNode;
+                args.add(new ApkInfo.Argument(
+                        argElement.getTagName(), argElement.getTextContent()));
+            }
+        }
+
+        return new ApkInfo(
+                getElement(element, "name"),
+                getElement(element, "fileName"),
+                getElement(element, "packageName"),
+                args);
     }
 
     private String getElement(Element element, String tag) {
