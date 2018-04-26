@@ -1,4 +1,3 @@
-
 Note: env setup requires slightly more than a normal Android build,
 so that the path gets adjusted for tradefed.sh:
 
@@ -9,8 +8,9 @@ From the root of your Android tree:
 lunch 2				# generic aosp arm64 eng build
 mmma tools/tradefederation/core tools/test/graphicsbenchmark
 
-
 Incremental build + run, from tools/test/graphicsbenchmark dir:
 
 mma
-tradefed.sh run commandAndExit AndroidTest.xml --alt-dir $OUT --apk-dir $PATH_TO_BENCHMARK_APK_DIR
+tradefed.sh run commandAndExit AndroidTest.xml --alt-dir $OUT --apk-dir $OUT/data/app
+
+Contact a member of the team for alternative test apks.
