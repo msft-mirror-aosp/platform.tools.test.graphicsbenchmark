@@ -33,5 +33,17 @@ LOCAL_COMPATIBILITY_SUITE := general-tests
 
 include $(BUILD_HOST_JAVA_LIBRARY)
 
+
+# Test
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := $(call all-java-files-under, test)
+LOCAL_MODULE := graphicsbenchmarkhelper-test
+LOCAL_MODULE_TAGS := tests
+LOCAL_COMPATIBILITY_SUITE := general-tests
+LOCAL_JAVA_LIBRARIES := graphicsbenchmarkhelper-host junit-host
+
+include $(BUILD_HOST_JAVA_LIBRARY)
+
 # Build all sub-directories
 include $(call all-makefiles-under,$(LOCAL_PATH))
