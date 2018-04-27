@@ -19,6 +19,7 @@ package com.android.graphics.benchmark.testtype;
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.tradefed.result.TestDescription;
 import com.android.graphics.benchmark.ApkInfo;
+import com.android.graphics.benchmark.ApkListXmlParser;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
@@ -28,14 +29,24 @@ import com.android.tradefed.testtype.IDeviceTest;
 import com.android.tradefed.testtype.IRemoteTest;
 import com.android.tradefed.testtype.IShardableTest;
 
+import com.google.common.io.ByteStreams;
+
+import org.xml.sax.SAXException;
+
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 public class GraphicsBenchmarkHostsideController implements IShardableTest, IDeviceTest {
     // Package and class of the device side test.
@@ -47,7 +58,8 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
     private static final long DEFAULT_MAX_TIMEOUT_TO_OUTPUT_MS = 10 * 60 * 1000L; //10min
 
     private ITestDevice mDevice;
-    private List<ApkInfo> mApks = Arrays.asList(ApkInfo.values());
+    private List<ApkInfo> mApks = null;
+    private File mApkInfoFile;
 
     @Override
     public void setDevice(ITestDevice device) {
@@ -59,11 +71,20 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         return mDevice;
     }
 
-    @Option(name = "apk-dir", description = "Directory contains the APKs for benchmarks")
+    @Option(name = "apk-dir",
+            description = "Directory contains the APKs for benchmarks",
+            importance = Option.Importance.ALWAYS,
+            mandatory = true)
     private String mApkDir;
+
+    @Option(name = "apk-info",
+            description = "A JSON file describing the list of APKs",
+            importance = Option.Importance.ALWAYS)
+    private String mApkInfoFileName;
 
     @Override
     public Collection<IRemoteTest> split(int shardCountHint) {
+        initApkList();
         List<IRemoteTest> shards = new ArrayList<>();
         for(int i = 0; i < shardCountHint; i++) {
             if (i >= mApks.size()) {
@@ -85,23 +106,55 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
     @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
         Map<String, String> runMetrics = new HashMap<>();
+        initApkList();
         listener.testRunStarted("graphicsbenchmark", mApks.size());
+        getDevice().pushFile(mApkInfoFile, ApkInfo.APK_LIST_LOCATION);
 
         for (ApkInfo apk : mApks) {
             getDevice().installPackage(new File(mApkDir, apk.getFileName()), true);
 
             // TODO: Migrate to TF TestDescription when available
-            TestDescription identifier = new TestDescription(CLASS, "run[" + apk.name() + "]");
+            TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
             Map<String, String> testMetrics = new HashMap<>();
             // TODO: Populate metrics
 
             listener.testStarted(identifier);
-            runDeviceTests(PACKAGE, CLASS, "run[" + apk.name() + "]");
+            runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
             listener.testEnded(identifier, testMetrics);
         }
 
         listener.testRunEnded(0, runMetrics);
     }
+
+    private void initApkList() {
+        if (mApks != null) {
+            return;
+        }
+        if (mApkInfoFileName != null) {
+            mApkInfoFile = new File(mApkInfoFileName);
+        } else {
+            String resource = "/com/android/graphics/benchmark/apk-info.xml";
+            try(InputStream inputStream = ApkInfo.class.getResourceAsStream(resource)) {
+                if (inputStream == null) {
+                    throw new FileNotFoundException("Unable to find resource: " + resource);
+                }
+                mApkInfoFile = File.createTempFile("apk-info", ".xml");
+                try (OutputStream ostream = new FileOutputStream(mApkInfoFile)) {
+                    ByteStreams.copy(inputStream, ostream);
+                }
+                mApkInfoFile.deleteOnExit();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        ApkListXmlParser parser = new ApkListXmlParser();
+        try {
+            mApks = parser.parse(mApkInfoFile);
+        } catch (IOException | ParserConfigurationException | SAXException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     // TODO: Migrate to use BaseHostJUnit4Test when available.
     /**

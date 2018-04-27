@@ -26,16 +26,21 @@ import android.support.test.InstrumentationRegistry;
 import android.util.Log;
 
 import com.android.graphics.benchmark.ApkInfo;
+import com.android.graphics.benchmark.ApkListXmlParser;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import org.xml.sax.SAXException;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 @RunWith(Parameterized.class)
 public class GraphicsBenchmarkTest {
@@ -44,39 +49,43 @@ public class GraphicsBenchmarkTest {
     private static final String TAG = "GraphicsBenchmarkTest";
 
     @Parameters(name = "{0}")
-    public static Iterable<Object[]> data() {
+    public static Iterable<Object[]> data()
+            throws ParserConfigurationException, SAXException, IOException {
         List<Object[]> params = new ArrayList<>();
-        for (ApkInfo apk : ApkInfo.values()) {
-            params.add(new Object[] { apk.name(), apk });
+        ApkListXmlParser parser = new ApkListXmlParser();
+        List<ApkInfo> apks = parser.parse(new File(ApkInfo.APK_LIST_LOCATION));
+        for (ApkInfo apk : apks) {
+            params.add(new Object[] { apk.getName(), apk });
         }
+
         return params;
     }
 
     @Parameter(value = 0)
-    public String apkName;
+    public String mApkName;
 
     @Parameter(value = 1)
-    public ApkInfo apk;
+    public ApkInfo mApk;
 
     private Handler mHandler;
     private MetricsReporter mReport = new MetricsReporter();
 
     @Test public void run() throws IntentFilter.MalformedMimeTypeException, IOException {
-        startApp(apk);
+        startApp(mApk);
     }
 
-    private void startApp(ApkInfo app) throws IntentFilter.MalformedMimeTypeException, IOException {
+    private void startApp(ApkInfo apk) throws IntentFilter.MalformedMimeTypeException, IOException {
         Looper.prepare();
         mHandler = new Handler();
 
         registerReceiver();
-        mReport.begin(app.name());
-        Log.d(TAG, "Launching " + app.getPackageName());
+        mReport.begin(apk.getName());
+        Log.d(TAG, "Launching " + apk.getPackageName());
 
         // TODO: Need to support passing arguments to intents.
         Intent intent =
                 InstrumentationRegistry.getContext().getPackageManager()
-                    .getLaunchIntentForPackage(app.getPackageName());
+                    .getLaunchIntentForPackage(apk.getPackageName());
         InstrumentationRegistry.getContext().startActivity(intent);
         mHandler.postDelayed(() -> mHandler.getLooper().quit(), 10000);
         Looper.loop();

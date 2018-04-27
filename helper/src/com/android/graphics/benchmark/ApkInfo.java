@@ -16,23 +16,56 @@
 
 package com.android.graphics.benchmark;
 
-public enum ApkInfo {
-    SNIPER_3D("Sniper3D_3242.apk", "com.fungames.sniper3d"),
-    AFTERPULSE("afterpulse-v1.9.0.apk", "com.dle.afterpulse");
+import java.util.Collection;
+import java.util.List;
 
-    private String fileName;
-    private String packageName;
+public class ApkInfo {
+    public static final String APK_LIST_LOCATION = "/sdcard/benchmark/apk-info.xml";
 
-    ApkInfo(String fileName, String packageName) {
-        this.fileName = fileName;
-        this.packageName = packageName;
+    //TODO: support non-String args.
+    public static class Argument {
+        private String mKey;
+        private String mValue;
+
+        public Argument(String key, String value) {
+            mKey = key;
+            mValue = value;
+        }
+
+        public String getKey() {
+            return mKey;
+        }
+
+        public String getValue() {
+            return mValue;
+        }
+    }
+
+    private String mName;
+    private String mFileName;
+    private String mPackageName;
+    private List<Argument> mArgs;
+
+    public ApkInfo(String name, String fileName, String packageName, List<Argument> args) {
+        this.mName = name;
+        this.mFileName = fileName;
+        this.mPackageName = packageName;
+        this.mArgs = args;
+    }
+
+    public String getName() {
+        return mName;
     }
 
     public String getFileName() {
-        return fileName;
+        return mFileName;
     }
 
     public String getPackageName() {
-        return packageName;
+        return mPackageName;
+    }
+
+    public List<Argument> getArgs() {
+        return mArgs;
     }
 }
