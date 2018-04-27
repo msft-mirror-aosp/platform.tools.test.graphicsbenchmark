@@ -16,6 +16,8 @@
 
 package com.android.graphics.benchmark.testtype;
 
+import com.android.graphics.benchmark.metric.GraphicsBenchmarkMetricCollector;
+
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.tradefed.result.TestDescription;
 import com.android.graphics.benchmark.ApkInfo;
@@ -106,24 +108,29 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
     @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
         Map<String, String> runMetrics = new HashMap<>();
+
         initApkList();
-        listener.testRunStarted("graphicsbenchmark", mApks.size());
         getDevice().pushFile(mApkInfoFile, ApkInfo.APK_LIST_LOCATION);
 
         for (ApkInfo apk : mApks) {
             getDevice().installPackage(new File(mApkDir, apk.getFileName()), true);
+            GraphicsBenchmarkMetricCollector.setAppLayerName(apk.getPackageName());
+
+            // Might seem counter-intuitive, but the easiest way to get per-package results is
+            // to put this call and the corresponding testRunEnd inside the for loop for now
+            listener.testRunStarted("graphicsbenchmark", mApks.size());
 
             // TODO: Migrate to TF TestDescription when available
             TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
+
             Map<String, String> testMetrics = new HashMap<>();
             // TODO: Populate metrics
 
             listener.testStarted(identifier);
             runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
             listener.testEnded(identifier, testMetrics);
+            listener.testRunEnded(0, runMetrics);
         }
-
-        listener.testRunEnded(0, runMetrics);
     }
 
     private void initApkList() {
