@@ -4,10 +4,12 @@
         <name>sniper3d</name>
         <fileName>Sniper3D_3242.apk</fileName>
         <packageName>com.fungames.sniper3d</packageName>
+        <layerName>SurfaceView - com.fungames.sniper3d/com.tfg.libs.billing.unity.BillingActivity#0</layerName>
     </apk>
     <apk>
         <name>afterpulse</name>
         <fileName>afterpulse-v1.9.0.apk</fileName>
         <packageName>com.dle.afterpulse</packageName>
+        <layerName>com.dle.afterpulse/com.dle.application.obbdownloader.OBBDownloaderActivity#0</layerName>
     </apk>
 </apk-info>

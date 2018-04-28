@@ -87,6 +87,7 @@ public class ApkListXmlParser {
                 getElement(element, "name"),
                 getElement(element, "fileName"),
                 getElement(element, "packageName"),
+                getElement(element, "layerName"),
                 args);
     }
 
