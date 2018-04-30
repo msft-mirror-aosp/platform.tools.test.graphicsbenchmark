@@ -114,7 +114,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
 
         for (ApkInfo apk : mApks) {
             getDevice().installPackage(new File(mApkDir, apk.getFileName()), true);
-            GraphicsBenchmarkMetricCollector.setAppLayerName(apk.getPackageName(), apk.getLayerName());
+            GraphicsBenchmarkMetricCollector.setAppLayerName(apk);
 
             // Might seem counter-intuitive, but the easiest way to get per-package results is
             // to put this call and the corresponding testRunEnd inside the for loop for now
