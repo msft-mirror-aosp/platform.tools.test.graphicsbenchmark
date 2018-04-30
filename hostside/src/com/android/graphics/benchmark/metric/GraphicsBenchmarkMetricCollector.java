@@ -193,13 +193,30 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     private void onStart(DeviceMetricData runData) {}
 
     private void onEnd(DeviceMetricData runData) {
+        double minFPS = Double.MAX_VALUE, maxFPS = 0.0, avgFPS = 0.0;
+
         // TODO: Find a way to send the results to the same directory as the inv. log files
         try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
             outputFile.write("VSync Period: " + mVSyncPeriod + "\n");
 
             outputFile.write("Times:\n");
             for(Long time : mElapsedTimes)
-                outputFile.write(time + "\n");
+            {
+                double currentFPS = 1.0/(time/1.0e9);
+                minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
+                maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
+                avgFPS += currentFPS;
+
+                outputFile.write(currentFPS + "\n");
+            }
+
+            outputFile.write("\nSTATS\n");
+
+            avgFPS = avgFPS / mElapsedTimes.size();
+
+            outputFile.write("min FPS = " + minFPS + "\n");
+            outputFile.write("max FPS = " + maxFPS + "\n");
+            outputFile.write("avg FPS = " + avgFPS + "\n");
 
         } catch (IOException e) {
             throw new RuntimeException(e);
