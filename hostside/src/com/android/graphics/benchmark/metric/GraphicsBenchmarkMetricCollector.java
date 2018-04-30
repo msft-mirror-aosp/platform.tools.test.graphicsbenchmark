@@ -47,9 +47,9 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     private boolean mFirstRun = true;
 
     // TODO: Investigate interaction with sharding support
-    public static void setAppLayerName(String name) {
+    public static void setAppLayerName(String name, String layer) {
         mAppLayerName = name;
-        mTargetLayer = null;
+        mTargetLayer = layer;
     }
 
     @Option(
@@ -129,15 +129,15 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
                 return;
             }
 
-            if (mTargetLayer == null) {
-                cmd = "dumpsys SurfaceFlinger --list";
-                layerList = mDevice.executeShellCommand(cmd).split("\n");
+            // if (mTargetLayer == null) {
+            //     cmd = "dumpsys SurfaceFlinger --list";
+            //     layerList = mDevice.executeShellCommand(cmd).split("\n");
 
-                for (int i = 0; i < layerList.length; i++) {
-                    if (layerList[i].contains(mAppLayerName) && layerList[i].contains("SurfaceView")) // SAFE ASSUMPTION?
-                        mTargetLayer = layerList[i];
-                }
-            }
+            //     for (int i = 0; i < layerList.length; i++) {
+            //         if (layerList[i].contains(mAppLayerName) && layerList[i].contains("SurfaceView")) // SAFE ASSUMPTION?
+            //             mTargetLayer = layerList[i];
+            //     }
+            // }
 
             if (mTargetLayer == null)
             {
