@@ -82,10 +82,14 @@ public class GraphicsBenchmarkTest {
         mReport.begin(apk.getName());
         Log.d(TAG, "Launching " + apk.getPackageName());
 
-        // TODO: Need to support passing arguments to intents.
         Intent intent =
                 InstrumentationRegistry.getContext().getPackageManager()
                     .getLaunchIntentForPackage(apk.getPackageName());
+
+        for (ApkInfo.Argument argument : mApk.getArgs()) {
+            intent.putExtra(argument.getKey(), argument.getValue());
+        }
+
         InstrumentationRegistry.getContext().startActivity(intent);
         mHandler.postDelayed(() -> mHandler.getLooper().quit(), 10000);
         Looper.loop();
