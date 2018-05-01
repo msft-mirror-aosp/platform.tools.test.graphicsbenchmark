@@ -72,6 +72,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
         CLog.e("Device : " + mDevice);
 
         mElapsedTimes = new ArrayList<Long>();
+        mLatestSeen = 0;
 
         CLog.e("starting");
         onStart(runData);
@@ -158,7 +159,10 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     }
 
     private boolean sample(long timeStamp) {
-        if (timeStamp < mLatestSeen) {
+        if (timeStamp == Long.MAX_VALUE) {
+            return true;
+        }
+        else if (timeStamp < mLatestSeen) {
             return false;
         }
         else if (timeStamp == mLatestSeen) {
