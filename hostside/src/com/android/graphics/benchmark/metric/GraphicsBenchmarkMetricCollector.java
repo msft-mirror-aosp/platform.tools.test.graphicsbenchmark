@@ -16,6 +16,8 @@
 
 package com.android.graphics.benchmark.metric;
 
+import com.android.graphics.benchmark.ApkInfo;
+
 import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
 import com.android.tradefed.device.metric.DeviceMetricData;
 import com.android.tradefed.invoker.IInvocationContext;
@@ -39,17 +41,15 @@ import java.nio.file.Files;
 public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector {
 
     private long mLatestSeen = 0;
-    private static String mAppLayerName;
-    private static String mTargetLayer;
+    private static ApkInfo mTestApk;
     private long mVSyncPeriod = 0;
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mFirstRun = true;
 
     // TODO: Investigate interaction with sharding support
-    public static void setAppLayerName(String name) {
-        mAppLayerName = name;
-        mTargetLayer = null;
+    public static void setAppLayerName(ApkInfo apk) {
+        mTestApk = apk;
     }
 
     @Option(
@@ -124,31 +124,15 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
             String cmd;
             String[] layerList;
 
-            if (mAppLayerName == null) {
-                CLog.e("No App Layer Name provided!");
+            if (mTestApk == null) {
+                CLog.e("No test apk provided!");
                 return;
             }
 
-            if (mTargetLayer == null) {
-                cmd = "dumpsys SurfaceFlinger --list";
-                layerList = mDevice.executeShellCommand(cmd).split("\n");
-
-                for (int i = 0; i < layerList.length; i++) {
-                    if (layerList[i].contains(mAppLayerName) && layerList[i].contains("SurfaceView")) // SAFE ASSUMPTION?
-                        mTargetLayer = layerList[i];
-                }
-            }
-
-            if (mTargetLayer == null)
-            {
-                CLog.e("Target layer not found");
-                return;
-            }
-
-            CLog.e("Target Layer: " + mTargetLayer);
+            CLog.e("Target Layer: " + mTestApk.getLayerName());
 
             boolean firstLoop = true;
-            cmd = "dumpsys SurfaceFlinger --latency \"" + mTargetLayer+ "\"";
+            cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
             String[] raw = mDevice.executeShellCommand(cmd).split("\n");
 
             if (firstLoop) {
@@ -193,14 +177,32 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     private void onStart(DeviceMetricData runData) {}
 
     private void onEnd(DeviceMetricData runData) {
+        double minFPS = Double.MAX_VALUE, maxFPS = 0.0, avgFPS = 0.0;
+
         // TODO: Find a way to send the results to the same directory as the inv. log files
         try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
             outputFile.write("VSync Period: " + mVSyncPeriod + "\n");
 
             outputFile.write("Times:\n");
             for(Long time : mElapsedTimes)
-                outputFile.write(time + "\n");
+            {
+                double currentFPS = 1.0e9/time;
+                minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
+                maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
+                avgFPS += currentFPS;
 
+                outputFile.write(currentFPS + "\n");
+            }
+
+            outputFile.write("\nSTATS\n");
+
+            avgFPS = avgFPS / mElapsedTimes.size();
+
+            outputFile.write("min FPS = " + minFPS + "\n");
+            outputFile.write("max FPS = " + maxFPS + "\n");
+            outputFile.write("avg FPS = " + avgFPS + "\n");
+
+            outputFile.write("\n");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
