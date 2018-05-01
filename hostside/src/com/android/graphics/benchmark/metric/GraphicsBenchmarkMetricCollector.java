@@ -26,7 +26,10 @@ import com.android.graphics.benchmark.ApkInfo;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.log.LogUtil.CLog;
+import com.android.tradefed.metrics.proto.MetricMeasurement.DataType;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
+import com.android.tradefed.metrics.proto.MetricMeasurement.Directionality;
+import com.android.tradefed.metrics.proto.MetricMeasurement.Measurements;
 import com.android.tradefed.config.Option;
 
 import java.util.Map;
@@ -178,7 +181,10 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
             return true;
         }
         else {
-            mElapsedTimes.add(timeStamp - mLatestSeen);
+            // Ignore the first timestamp.
+            if (mLatestSeen != 0) {
+                mElapsedTimes.add(timeStamp - mLatestSeen);
+            }
             mLatestSeen = timeStamp;
             return false;
         }
@@ -188,7 +194,9 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     private void onStart(DeviceMetricData runData) {}
 
     private void onEnd(DeviceMetricData runData) {
-        double minFPS = Double.MAX_VALUE, maxFPS = 0.0, avgFPS = 0.0;
+        double minFPS = Double.MAX_VALUE;
+        double maxFPS = 0.0;
+        long totalTimeNs = 0;
 
         // TODO: correlate with mDeviceResultData to exclude loading period, etc.
 
@@ -202,18 +210,22 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
                 double currentFPS = 1.0e9/time;
                 minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
                 maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
-                avgFPS += currentFPS;
+                totalTimeNs += time;
 
                 outputFile.write(currentFPS + "\n");
             }
 
             outputFile.write("\nSTATS\n");
 
-            avgFPS = avgFPS / mElapsedTimes.size();
+            double avgFPS = mElapsedTimes.size() * 1.0e9 / totalTimeNs;
 
             outputFile.write("min FPS = " + minFPS + "\n");
             outputFile.write("max FPS = " + maxFPS + "\n");
             outputFile.write("avg FPS = " + avgFPS + "\n");
+
+            runData.addMetric("min_fps", getFpsMetric(minFPS));
+            runData.addMetric("max_fps", getFpsMetric(minFPS));
+            runData.addMetric("fps", getFpsMetric(avgFPS));
 
             outputFile.write("\n");
         } catch (IOException e) {
@@ -221,5 +233,13 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
         }
 
         mFirstRun = false;
+    }
+
+    private Metric.Builder getFpsMetric(double value) {
+        return Metric.newBuilder()
+            .setUnit("fps")
+            .setDirection(Directionality.UP_BETTER)
+            .setType(DataType.PROCESSED)
+            .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
     }
 }
