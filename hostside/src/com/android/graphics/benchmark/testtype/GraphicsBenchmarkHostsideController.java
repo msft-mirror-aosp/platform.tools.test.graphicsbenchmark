@@ -134,6 +134,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             listener.testEnded(identifier, testMetrics);
 
             ResultDataProto.Result resultData = retrieveResultData();
+            GraphicsBenchmarkMetricCollector.setDeviceResultData(resultData);
 
             listener.testRunEnded(0, runMetrics);
         }
