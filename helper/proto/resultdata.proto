@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+package graphicsbenchmark_proto;
+
+option java_package = "com.android.graphics.benchmark.proto";
+option java_outer_classname = "ResultDataProto";
+
+message Event {
+  enum Type {
+    START_LOOP = 1;
+  }
+
+  optional Type type = 1;
+  optional uint64 timestamp = 2;
+}
+
+message Result {
+  repeated Event events = 1;
+}
