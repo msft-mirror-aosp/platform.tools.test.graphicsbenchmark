@@ -17,8 +17,11 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES := $(call all-java-files-under, src)
-LOCAL_SDK_VERSION := current
+
+LOCAL_SRC_FILES := \
+	$(call all-java-files-under, src)\
+	$(call all-proto-files-under, proto)
+LOCAL_SDK_VERSION := 26  # Oreo
 LOCAL_MODULE := graphicsbenchmarkhelper
 LOCAL_MODULE_TAGS := optional
 
@@ -26,7 +29,9 @@ include $(BUILD_STATIC_JAVA_LIBRARY)
 
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES := $(call all-java-files-under, src)
+LOCAL_SRC_FILES := \
+	$(call all-java-files-under, src) \
+	$(call all-proto-files-under, proto)
 LOCAL_MODULE := graphicsbenchmarkhelper-host
 LOCAL_MODULE_TAGS := optional
 LOCAL_COMPATIBILITY_SUITE := general-tests
