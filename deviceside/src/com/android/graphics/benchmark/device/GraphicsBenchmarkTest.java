@@ -96,7 +96,7 @@ public class GraphicsBenchmarkTest {
             if (!mGotIntent) {
                 mHandler.getLooper().quit();
             }
-        }, 10000);
+        }, mApk.getRunTime());
         Looper.loop();
         mReport.end();
     }
@@ -109,7 +109,7 @@ public class GraphicsBenchmarkTest {
                 Log.d(TAG, "Received intent at " + timestamp);
                 mReport.startLoop(timestamp);
                 if (!mGotIntent) {
-                    mHandler.postDelayed(() -> mHandler.getLooper().quit(), 10000);
+                    mHandler.postDelayed(() -> mHandler.getLooper().quit(), mApk.getRunTime());
                     mGotIntent = true;
                 }
             }
