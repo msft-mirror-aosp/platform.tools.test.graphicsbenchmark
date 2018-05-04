@@ -18,6 +18,7 @@ package com.android.graphics.benchmark.testtype;
 
 import com.android.graphics.benchmark.metric.GraphicsBenchmarkMetricCollector;
 import com.android.graphics.benchmark.proto.ResultDataProto;
+import com.android.graphics.benchmark.ResultData;
 
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.tradefed.result.TestDescription;
@@ -60,7 +61,6 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
     private static final String AJUR_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
     private static final long DEFAULT_TEST_TIMEOUT_MS = 10 * 60 * 1000L; //10min
     private static final long DEFAULT_MAX_TIMEOUT_TO_OUTPUT_MS = 10 * 60 * 1000L; //10min
-    private static final String RESULT_FILE_NAME = "benchmark-result";
 
     private ITestDevice mDevice;
     private List<ApkInfo> mApks = null;
@@ -141,7 +141,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
     }
 
     private ResultDataProto.Result retrieveResultData() throws DeviceNotAvailableException {
-        File resultFile = getDevice().pullFileFromExternal(RESULT_FILE_NAME);
+        File resultFile = getDevice().pullFileFromExternal(ResultData.RESULT_FILE_LOCATION);
 
         if (resultFile != null) {
             try (InputStream inputStream = new FileInputStream(resultFile)) {
