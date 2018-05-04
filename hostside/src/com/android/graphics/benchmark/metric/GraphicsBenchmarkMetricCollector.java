@@ -17,6 +17,7 @@
 package com.android.graphics.benchmark.metric;
 
 import com.android.graphics.benchmark.ApkInfo;
+import com.android.graphics.benchmark.proto.ResultDataProto;
 
 import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
 import com.android.tradefed.device.metric.DeviceMetricData;
@@ -40,6 +41,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
 
     private long mLatestSeen = 0;
     private static ApkInfo mTestApk;
+    private static ResultDataProto.Result mDeviceResultData;
     private long mVSyncPeriod = 0;
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
@@ -48,6 +50,11 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     // TODO: Investigate interaction with sharding support
     public static void setAppLayerName(ApkInfo apk) {
         mTestApk = apk;
+    }
+
+    // TODO: same sharding concern
+    public static void setDeviceResultData(ResultDataProto.Result resultData) {
+        mDeviceResultData = resultData;
     }
 
     @Option(
@@ -180,6 +187,8 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
 
     private void onEnd(DeviceMetricData runData) {
         double minFPS = Double.MAX_VALUE, maxFPS = 0.0, avgFPS = 0.0;
+
+        // TODO: correlate with mDeviceResultData to exclude loading period, etc.
 
         // TODO: Find a way to send the results to the same directory as the inv. log files
         try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
