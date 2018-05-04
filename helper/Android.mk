@@ -21,7 +21,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := \
 	$(call all-java-files-under, src)\
 	$(call all-proto-files-under, proto)
-LOCAL_SDK_VERSION := current
+LOCAL_SDK_VERSION := 26  # Oreo
 LOCAL_MODULE := graphicsbenchmarkhelper
 LOCAL_MODULE_TAGS := optional
 
