@@ -17,6 +17,8 @@
 package com.android.graphics.benchmark.testtype;
 
 import com.android.graphics.benchmark.metric.GraphicsBenchmarkMetricCollector;
+import com.android.graphics.benchmark.proto.ResultDataProto;
+import com.android.graphics.benchmark.ResultData;
 
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.tradefed.result.TestDescription;
@@ -38,6 +40,7 @@ import org.xml.sax.SAXException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -129,8 +132,27 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             listener.testStarted(identifier);
             runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
             listener.testEnded(identifier, testMetrics);
+
+            ResultDataProto.Result resultData = retrieveResultData();
+            GraphicsBenchmarkMetricCollector.setDeviceResultData(resultData);
+
             listener.testRunEnded(0, runMetrics);
         }
+    }
+
+    private ResultDataProto.Result retrieveResultData() throws DeviceNotAvailableException {
+        File resultFile = getDevice().pullFileFromExternal(ResultData.RESULT_FILE_LOCATION);
+
+        if (resultFile != null) {
+            try (InputStream inputStream = new FileInputStream(resultFile)) {
+                ResultDataProto.Result data = ResultDataProto.Result.parseFrom(inputStream);
+                return data;
+            } catch(IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return null;
     }
 
     private void initApkList() {
