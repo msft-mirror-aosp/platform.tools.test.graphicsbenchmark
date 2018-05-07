@@ -224,7 +224,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
             outputFile.write("avg FPS = " + avgFPS + "\n");
 
             runData.addMetric("min_fps", getFpsMetric(minFPS));
-            runData.addMetric("max_fps", getFpsMetric(minFPS));
+            runData.addMetric("max_fps", getFpsMetric(maxFPS));
             runData.addMetric("fps", getFpsMetric(avgFPS));
 
             outputFile.write("\n");
