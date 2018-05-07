@@ -1,7 +1,7 @@
 <configuration description="Game benchmark test">
     <option name="test-tag" value="graphics-benchmark" />
-    <target_preparer class="com.android.tradefed.targetprep.TestAppInstallSetup">
-        <option name="test-file-name" value="GraphicsBenchmarkTestCases.apk" />
+    <target_preparer class="com.android.tradefed.targetprep.InstallBuildEnvApkSetup">
+        <option name="apk-name" value="GraphicsBenchmarkTestCases.apk" />
     </target_preparer>
 
     <metrics_collector class="com.android.graphics.benchmark.metric.GraphicsBenchmarkMetricCollector" />
