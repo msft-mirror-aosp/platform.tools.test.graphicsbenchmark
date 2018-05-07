@@ -34,6 +34,7 @@ import com.android.tradefed.testtype.IRemoteTest;
 import com.android.tradefed.testtype.IShardableTest;
 
 import com.google.common.io.ByteStreams;
+import com.google.common.io.Files;
 
 import org.xml.sax.SAXException;
 
@@ -116,7 +117,8 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         getDevice().pushFile(mApkInfoFile, ApkInfo.APK_LIST_LOCATION);
 
         for (ApkInfo apk : mApks) {
-            getDevice().installPackage(new File(mApkDir, apk.getFileName()), true);
+            File apkFile = findApk(apk.getFileName());
+            getDevice().installPackage(apkFile, true);
             GraphicsBenchmarkMetricCollector.setAppLayerName(apk);
 
             // Might seem counter-intuitive, but the easiest way to get per-package results is
@@ -130,7 +132,18 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             // TODO: Populate metrics
 
             listener.testStarted(identifier);
-            runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
+
+            if (apkFile == null) {
+                listener.testFailed(
+                        identifier,
+                        String.format(
+                                "Missing APK.  Unable to find %s in %s.",
+                                apk.getFileName(),
+                                mApkDir));
+            } else {
+                runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
+            }
+
             listener.testEnded(identifier, testMetrics);
 
             ResultDataProto.Result resultData = retrieveResultData();
@@ -147,11 +160,25 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             try (InputStream inputStream = new FileInputStream(resultFile)) {
                 ResultDataProto.Result data = ResultDataProto.Result.parseFrom(inputStream);
                 return data;
-            } catch(IOException e) {
+            } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
+        return null;
+    }
 
+    /** Find an apk in the apk-dir directory */
+    private File findApk(String filename) {
+        File file = new File(mApkDir, filename);
+        if (file.exists()) {
+            return file;
+        }
+        // If a default sample app is named Sample.apk, it is outputted to
+        // $ANDROID_PRODUCT_OUT/data/app/Sample/Sample.apk.
+        file = new File(mApkDir, Files.getNameWithoutExtension(filename) + "/" + filename);
+        if (file.exists()) {
+            return file;
+        }
         return null;
     }
 
@@ -159,21 +186,30 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         if (mApks != null) {
             return;
         }
+
+        // Find an apk info file.  The priorities are:
+        // 1. Use the specified apk-info if available.
+        // 2. Use 'apk-info.xml' if there is one in the apk-dir directory.
+        // 3. Use the default apk-info.xml in res.
         if (mApkInfoFileName != null) {
             mApkInfoFile = new File(mApkInfoFileName);
         } else {
-            String resource = "/com/android/graphics/benchmark/apk-info.xml";
-            try(InputStream inputStream = ApkInfo.class.getResourceAsStream(resource)) {
-                if (inputStream == null) {
-                    throw new FileNotFoundException("Unable to find resource: " + resource);
+            mApkInfoFile = new File(mApkDir, "apk-info.xml");
+
+            if (!mApkInfoFile.exists()) {
+                String resource = "/com/android/graphics/benchmark/apk-info.xml";
+                try(InputStream inputStream = ApkInfo.class.getResourceAsStream(resource)) {
+                    if (inputStream == null) {
+                        throw new FileNotFoundException("Unable to find resource: " + resource);
+                    }
+                    mApkInfoFile = File.createTempFile("apk-info", ".xml");
+                    try (OutputStream ostream = new FileOutputStream(mApkInfoFile)) {
+                        ByteStreams.copy(inputStream, ostream);
+                    }
+                    mApkInfoFile.deleteOnExit();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
-                mApkInfoFile = File.createTempFile("apk-info", ".xml");
-                try (OutputStream ostream = new FileOutputStream(mApkInfoFile)) {
-                    ByteStreams.copy(inputStream, ostream);
-                }
-                mApkInfoFile.deleteOnExit();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
             }
         }
         ApkListXmlParser parser = new ApkListXmlParser();
