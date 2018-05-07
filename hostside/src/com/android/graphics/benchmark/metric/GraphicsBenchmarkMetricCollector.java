@@ -176,7 +176,10 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
             return true;
         }
         else {
-            mElapsedTimes.add(timeStamp - mLatestSeen);
+            // Ignore the first timestamp.
+            if (mLatestSeen != 0) {
+                mElapsedTimes.add(timeStamp - mLatestSeen);
+            }
             mLatestSeen = timeStamp;
             return false;
         }
@@ -186,7 +189,9 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     private void onStart(DeviceMetricData runData) {}
 
     private void onEnd(DeviceMetricData runData) {
-        double minFPS = Double.MAX_VALUE, maxFPS = 0.0, avgFPS = 0.0;
+        double minFPS = Double.MAX_VALUE;
+        double maxFPS = 0.0;
+        long totalTimeNs = 0;
 
         // TODO: correlate with mDeviceResultData to exclude loading period, etc.
 
@@ -200,18 +205,22 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
                 double currentFPS = 1.0e9/time;
                 minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
                 maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
-                avgFPS += currentFPS;
+                totalTimeNs += time;
 
                 outputFile.write(currentFPS + "\n");
             }
 
             outputFile.write("\nSTATS\n");
 
-            avgFPS = avgFPS / mElapsedTimes.size();
+            double avgFPS = mElapsedTimes.size() * 1.0e9 / totalTimeNs;
 
             outputFile.write("min FPS = " + minFPS + "\n");
             outputFile.write("max FPS = " + maxFPS + "\n");
             outputFile.write("avg FPS = " + avgFPS + "\n");
+
+            runData.addStringMetric("min_fps", Double.toString(minFPS));
+            runData.addStringMetric("max_fps", Double.toString(minFPS));
+            runData.addStringMetric("fps", Double.toString(avgFPS));
 
             outputFile.write("\n");
         } catch (IOException e) {
