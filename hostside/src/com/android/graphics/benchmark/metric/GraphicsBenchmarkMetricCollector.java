@@ -38,7 +38,6 @@ import java.nio.file.Files;
 
 /** A {@link ScheduledDeviceMetricCollector} to collect graphics benchmarking stats at regular intervals. */
 public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector {
-
     private long mLatestSeen = 0;
     private static ApkInfo mTestApk;
     private static ResultDataProto.Result mDeviceResultData;
@@ -46,6 +45,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mFirstRun = true;
+    private boolean mFirstLoop;
 
     // TODO: Investigate interaction with sharding support
     public static void setAppLayerName(ApkInfo apk) {
@@ -68,20 +68,19 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
         description = "the interval between two tasks being scheduled",
         isTimeVal = true
     )
-    private long mIntervalMs = 1 * 1000l;
+    private long mIntervalMs = 1 * 1000L;
 
     private Timer mTimer;
 
     @Override
     public final void onTestRunStart(DeviceMetricData runData) {
-        CLog.e("Attempt to get device from onTestRunStart");
         mDevice = getDevices().get(0);
-        CLog.e("Device : " + mDevice);
+        CLog.v("Test run started on device %s.", mDevice);
 
         mElapsedTimes = new ArrayList<Long>();
         mLatestSeen = 0;
+        mFirstLoop = true;
 
-        CLog.e("starting");
         onStart(runData);
         mTimer = new Timer();
         TimerTask timerTask =
@@ -93,8 +92,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
                         } catch (InterruptedException e) {
                             mTimer.cancel();
                             Thread.currentThread().interrupt();
-                            CLog.e("Interrupted exception thrown from task:");
-                            CLog.e(e);
+                            CLog.e("Interrupted exception thrown from task: %s", e);
                         }
                     }
                 };
@@ -113,7 +111,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
             mTimer.purge();
         }
         onEnd(runData);
-        CLog.d("finished");
+        CLog.d("onTestRunEnd");
     }
 
 
@@ -125,25 +123,25 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
      */
     private void collect(DeviceMetricData runData) throws InterruptedException {
         try {
-            CLog.e("Running benchmarking stats...");
-
-            String cmd;
-            String[] layerList;
 
             if (mTestApk == null) {
-                CLog.e("No test apk provided!");
+                CLog.e("No test apk info provided.");
                 return;
             }
+            CLog.d("Collecting benchmark stats for layer: %s", mTestApk.getLayerName());
 
-            CLog.e("Target Layer: " + mTestApk.getLayerName());
-
-            boolean firstLoop = true;
-            cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
+            String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
             String[] raw = mDevice.executeShellCommand(cmd).split("\n");
 
-            if (firstLoop) {
+            if (mFirstLoop) {
+                if (raw.length == 1) {
+                    // We didn't get any frame timestamp info.  Mostly likely because the app has
+                    // not started yet.  Or the app layer name is wrong.
+                    // TODO: figure out how to report it if the app layer name is wrong.
+                    return;
+                }
                 mVSyncPeriod = Long.parseLong(raw[0]);
-                firstLoop = false;
+                mFirstLoop = false;
             }
 
             boolean overlap = false;
@@ -157,8 +155,9 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
                 }
             }
 
-            if (!overlap)
+            if (!overlap) {
                 CLog.e("No overlap with previous poll, we missed some frames!"); // FIND SOMETHING BETTER
+            }
 
         } catch (DeviceNotAvailableException | NullPointerException e) {
             CLog.e(e);
