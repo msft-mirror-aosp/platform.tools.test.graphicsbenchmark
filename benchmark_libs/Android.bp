@@ -19,5 +19,6 @@ cc_library_shared {
     srcs: [
         "android_benchmark.cpp"
     ],
+    export_include_dirs: ["."],
     shared_libs: ["liblog"],
 }
