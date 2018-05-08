@@ -28,27 +28,21 @@ import com.android.graphics.benchmark.ResultData;
 
 public class MetricsReporter {
     private String appName;
-    private List<Long> loopStartTimesMsecs = new ArrayList<>();
+    private ResultDataProto.Result.Builder builder = ResultDataProto.Result.newBuilder();
 
     public void begin(String appName) {
         this.appName = appName;
     }
 
-    public void startLoop(long timestampNsecs) {
-        loopStartTimesMsecs.add(timestampNsecs);
+    public void startLoop(long timestampMsecs) {
+        builder.addEvents(ResultDataProto.Event.newBuilder()
+                .setType(ResultDataProto.Event.Type.START_LOOP)
+                .setTimestamp(timestampMsecs).build());
     }
 
     public void end() throws IOException {
         File file = new File("/sdcard/" + ResultData.RESULT_FILE_LOCATION);
         Files.deleteIfExists(file.toPath());
-        ResultDataProto.Result.Builder builder = ResultDataProto.Result.newBuilder();
-
-        for (Long value : loopStartTimesMsecs) {
-            builder.addEvents(ResultDataProto.Event.newBuilder()
-                    .setType(ResultDataProto.Event.Type.START_LOOP)
-                    .setTimestamp(value)
-                    .build());
-        }
 
         try (OutputStream outputStream = new FileOutputStream(file)) {
             builder.build().writeTo(outputStream);
