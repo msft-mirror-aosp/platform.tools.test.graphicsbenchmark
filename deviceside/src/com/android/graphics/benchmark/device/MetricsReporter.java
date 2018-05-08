@@ -15,14 +15,16 @@
  */
 package com.android.graphics.benchmark.device;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.OutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.android.graphics.benchmark.proto.ResultDataProto;
+import com.android.graphics.benchmark.ResultData;
 
 public class MetricsReporter {
     private String appName;
@@ -37,13 +39,19 @@ public class MetricsReporter {
     }
 
     public void end() throws IOException {
-        File file = new File("/sdcard/benchmark-" + appName + ".csv");
+        File file = new File("/sdcard/" + ResultData.RESULT_FILE_LOCATION);
         Files.deleteIfExists(file.toPath());
-        try (Writer writer = new BufferedWriter(new FileWriter(file))) {
-            for (Long timestamp : loopStartTimesMsecs) {
-                writer.append(timestamp.toString());
-                writer.append('\n');
-            }
+        ResultDataProto.Result.Builder builder = ResultDataProto.Result.newBuilder();
+
+        for (Long value : loopStartTimesMsecs) {
+            builder.addEvents(ResultDataProto.Event.newBuilder()
+                    .setType(ResultDataProto.Event.Type.START_LOOP)
+                    .setTimestamp(value)
+                    .build());
+        }
+
+        try (OutputStream outputStream = new FileOutputStream(file)) {
+            builder.build().writeTo(outputStream);
         }
     }
 }
