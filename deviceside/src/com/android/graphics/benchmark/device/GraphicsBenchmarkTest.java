@@ -69,6 +69,7 @@ public class GraphicsBenchmarkTest {
 
     private Handler mHandler;
     private MetricsReporter mReport = new MetricsReporter();
+    private boolean mGotIntent = false;
 
     @Test public void run() throws IntentFilter.MalformedMimeTypeException, IOException {
         startApp(mApk);
@@ -91,7 +92,11 @@ public class GraphicsBenchmarkTest {
         }
 
         InstrumentationRegistry.getContext().startActivity(intent);
-        mHandler.postDelayed(() -> mHandler.getLooper().quit(), 10000);
+        mHandler.postDelayed(() -> {
+            if (!mGotIntent) {
+                mHandler.getLooper().quit();
+            }
+        }, 10000);
         Looper.loop();
         mReport.end();
     }
@@ -103,6 +108,10 @@ public class GraphicsBenchmarkTest {
                 long timestamp = intent.getLongExtra("timestamp", 0);
                 Log.d(TAG, "Received intent at " + timestamp);
                 mReport.startLoop(timestamp);
+                if (!mGotIntent) {
+                    mHandler.postDelayed(() -> mHandler.getLooper().quit(), 10000);
+                    mGotIntent = true;
+                }
             }
         };
         IntentFilter intentFilter = new IntentFilter(INTENT_ACTION, "text/plain");
