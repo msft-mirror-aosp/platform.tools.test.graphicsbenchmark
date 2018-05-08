@@ -46,13 +46,15 @@ public class ApkInfo {
     private String mPackageName;
     private String mLayerName;
     private List<Argument> mArgs;
+    private int mRunTime;
 
-    public ApkInfo(String name, String fileName, String packageName, String layerName, List<Argument> args) {
+    public ApkInfo(String name, String fileName, String packageName, String layerName, List<Argument> args, int runTime) {
         this.mName = name;
         this.mFileName = fileName;
         this.mPackageName = packageName;
         this.mLayerName = layerName;
         this.mArgs = args;
+        this.mRunTime = runTime;
     }
 
     public String getName() {
@@ -73,5 +75,9 @@ public class ApkInfo {
 
     public List<Argument> getArgs() {
         return mArgs;
+    }
+
+    public int getRunTime() {
+        return mRunTime;
     }
 }
