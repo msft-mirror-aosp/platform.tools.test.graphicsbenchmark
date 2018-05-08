@@ -19,11 +19,13 @@ import android.app.Activity;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Looper;
 
 public class SampleActivity extends Activity {
+    private static final long LOOP_PERIOD_MS = 5 * 1000L;
+
     private GLSurfaceView mGLView;
+    private Handler mHandler;
+    private Runnable mTask;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -35,15 +37,27 @@ public class SampleActivity extends Activity {
         setContentView(mGLView);
 
         // Loop every 5s.
-        Handler handler = new Handler();
-        Runnable task = new Runnable() {
+        mHandler = new Handler();
+        mTask = new Runnable() {
             @Override
             public void run() {
                 broadcastIntent();
-                handler.postDelayed(this, 5000);
+                mHandler.postDelayed(this, LOOP_PERIOD_MS);
             }
         };
-        handler.postDelayed(task, 5000);
+        mHandler.postDelayed(mTask, LOOP_PERIOD_MS);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mHandler.postDelayed(mTask, LOOP_PERIOD_MS);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mHandler.removeCallbacks(mTask);
     }
 
     public native void broadcastIntent();
