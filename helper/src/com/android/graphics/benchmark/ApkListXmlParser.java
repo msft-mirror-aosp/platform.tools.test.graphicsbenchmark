@@ -84,14 +84,21 @@ public class ApkListXmlParser {
         }
 
         return new ApkInfo(
-                getElement(element, "name"),
-                getElement(element, "fileName"),
-                getElement(element, "packageName"),
-                getElement(element, "layerName"),
-                args);
+                getElement(element, "name", null),
+                getElement(element, "fileName", null),
+                getElement(element, "packageName", null),
+                getElement(element, "layerName", null),
+                args,
+                Integer.parseInt(getElement(element, "runTime", "10000"))
+                );
     }
 
-    private String getElement(Element element, String tag) {
-        return element.getElementsByTagName(tag).item(0).getTextContent();
+    private String getElement(Element element, String tag, String defaultValue) {
+        NodeList elements = element.getElementsByTagName(tag);
+        if (elements.getLength() > 0) {
+            return elements.item(0).getTextContent();
+        } else {
+            return defaultValue;
+        }
     }
 }
