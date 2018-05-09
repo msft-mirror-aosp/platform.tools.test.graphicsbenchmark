@@ -175,10 +175,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
             return true;
         }
         else {
-            // Ignore the first timestamp.
-            if (mLatestSeen != 0) {
-                mElapsedTimes.add(timeStamp - mLatestSeen);
-            }
+            mElapsedTimes.add(timeStamp);
             mLatestSeen = timeStamp;
             return false;
         }
@@ -199,22 +196,49 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
 
         // TODO: Find a way to send the results to the same directory as the inv. log files
         try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
-            outputFile.write("VSync Period: " + mVSyncPeriod + "\n");
+            long loadTime = 0L;
+            if (mDeviceResultData.getEventsCount() > 0) {
+                loadTime = mDeviceResultData.getEvents(0).getTimestamp();
+            }
+            else {
+                CLog.e("No start benchmark intent given");
+            }
 
-            outputFile.write("Times:\n");
-            for(Long time : mElapsedTimes)
+            outputFile.write("Started at: " + loadTime + " ms \n");
+            loadTime *= 1000000;
+
+            outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
+
+            outputFile.write("Frame Time\t\tFrames Per Second\n");
+
+            long prevTime = 0L;
+            int numOfTimestamps = 0;
+            for(long time : mElapsedTimes)
             {
-                double currentFPS = 1.0e9/time;
-                minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
-                maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
-                totalTimeNs += time;
+                if (time > loadTime) {
 
-                outputFile.write(currentFPS + "\n");
+                    if (prevTime == 0) {
+                        prevTime = time;
+                        continue;
+                    }
+
+                    long timeDiff = time - prevTime;
+                    prevTime = time;
+
+                    double currentFPS = 1.0e9/timeDiff;
+                    minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
+                    maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
+                    totalTimeNs += timeDiff;
+                    numOfTimestamps++;
+
+                    outputFile.write(timeDiff + " ms\t\t" + currentFPS + " fps\n");
+                }
+
             }
 
             outputFile.write("\nSTATS\n");
 
-            double avgFPS = mElapsedTimes.size() * 1.0e9 / totalTimeNs;
+            double avgFPS = numOfTimestamps * 1.0e9 / totalTimeNs;
 
             outputFile.write("min FPS = " + minFPS + "\n");
             outputFile.write("max FPS = " + maxFPS + "\n");
