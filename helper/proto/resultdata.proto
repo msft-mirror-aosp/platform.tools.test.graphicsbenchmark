@@ -11,7 +11,7 @@ message Event {
   }
 
   optional Type type = 1;
-  optional uint64 timestamp = 2;
+  optional int64 timestamp = 2;
 }
 
 message Result {
