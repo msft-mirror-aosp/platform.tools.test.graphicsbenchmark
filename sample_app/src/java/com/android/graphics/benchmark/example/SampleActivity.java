@@ -45,7 +45,6 @@ public class SampleActivity extends Activity {
                 mHandler.postDelayed(this, LOOP_PERIOD_MS);
             }
         };
-        mHandler.postDelayed(mTask, LOOP_PERIOD_MS);
     }
 
     @Override
