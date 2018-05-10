@@ -184,66 +184,94 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
 
     private void onStart(DeviceMetricData runData) {}
 
-    private void onEnd(DeviceMetricData runData) {
+    private void processTimestampsSlice(int runIndex, long startTimestamp, long endTimestamp, BufferedWriter outputFile, DeviceMetricData runData) throws IOException {
         double minFPS = Double.MAX_VALUE;
         double maxFPS = 0.0;
         long totalTimeNs = 0;
 
-        // TODO: Find a way to send the results to the same directory as the inv. log files
-        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
-            long loadTime = 0L;
-            if (mDeviceResultData.getEventsCount() > 0) {
-                loadTime = mDeviceResultData.getEvents(0).getTimestamp();
+        outputFile.write("Started run " + runIndex + " at: " + startTimestamp + " ns \n");
+
+        outputFile.write("Frame Time\t\tFrames Per Second\n");
+
+        long prevTime = 0L;
+        int numOfTimestamps = 0;
+
+        for(long time : mElapsedTimes)
+        {
+            if (time < startTimestamp) {
+                continue;
             }
-            else {
-                CLog.e("No start benchmark intent given");
+            if (time > endTimestamp) {
+                break;
             }
 
-            outputFile.write("Started at: " + loadTime + " ms \n");
-            loadTime *= 1000000;
+            if (prevTime == 0) {
+                prevTime = time;
+                continue;
+            }
+
+            long timeDiff = time - prevTime;
+            prevTime = time;
+
+            double currentFPS = 1.0e9/timeDiff;
+            minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
+            maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
+            totalTimeNs += timeDiff;
+            numOfTimestamps++;
+
+            outputFile.write(timeDiff + " ns\t\t" + currentFPS + " fps\n");
+        }
+
+        // There's a fair amount of slop in the system wrt device timing vs host orchestration,
+        // so it's possible that we'll receive an extra intent after we've stopped caring.
+        if (numOfTimestamps == 0) {
+            outputFile.write("No samples in period, assuming spurious intent.\n\n");
+            return;
+        }
+
+        outputFile.write("\nSTATS\n");
+
+        double avgFPS = numOfTimestamps * 1.0e9 / totalTimeNs;
+
+        outputFile.write("min FPS = " + minFPS + "\n");
+        outputFile.write("max FPS = " + maxFPS + "\n");
+        outputFile.write("avg FPS = " + avgFPS + "\n");
+
+        runData.addStringMetric("run_" + runIndex + ".min_fps", Double.toString(minFPS));
+        runData.addStringMetric("run_" + runIndex + ".max_fps", Double.toString(maxFPS));
+        runData.addStringMetric("run_" + runIndex + ".fps", Double.toString(avgFPS));
+
+        outputFile.write("\n");
+    }
+
+    private void onEnd(DeviceMetricData runData) {
+
+        // TODO: Find a way to send the results to the same directory as the inv. log files
+        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
 
             outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
-            outputFile.write("Frame Time\t\tFrames Per Second\n");
-
-            long prevTime = 0L;
-            int numOfTimestamps = 0;
-            for(long time : mElapsedTimes)
-            {
-                if (time > loadTime) {
-
-                    if (prevTime == 0) {
-                        prevTime = time;
-                        continue;
-                    }
-
-                    long timeDiff = time - prevTime;
-                    prevTime = time;
-
-                    double currentFPS = 1.0e9/timeDiff;
-                    minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
-                    maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
-                    totalTimeNs += timeDiff;
-                    numOfTimestamps++;
-
-                    outputFile.write(timeDiff + " ms\t\t" + currentFPS + " fps\n");
-                }
-
+            if (mDeviceResultData.getEventsCount() == 0) {
+                CLog.w("No start benchmark intent given; assuming single run with no loading period to exclude.");
             }
 
-            outputFile.write("\nSTATS\n");
+            long startTime = 0L;
+            int runIndex = 0;
+            for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
+                if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
+                    continue;
+                }
 
-            double avgFPS = numOfTimestamps * 1.0e9 / totalTimeNs;
+                long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
 
-            outputFile.write("min FPS = " + minFPS + "\n");
-            outputFile.write("max FPS = " + maxFPS + "\n");
-            outputFile.write("avg FPS = " + avgFPS + "\n");
+                if (startTime != 0) {
+                    processTimestampsSlice(runIndex++, startTime, endTime, outputFile, runData);
+                }
+                startTime = endTime;
+            }
 
-            runData.addStringMetric("min_fps", Double.toString(minFPS));
-            runData.addStringMetric("max_fps", Double.toString(maxFPS));
-            runData.addStringMetric("fps", Double.toString(avgFPS));
+            processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1), outputFile, runData);
 
-            outputFile.write("\n");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
