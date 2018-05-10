@@ -189,11 +189,6 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
         double maxFPS = 0.0;
         long totalTimeNs = 0;
 
-        // TODO: correlate with mDeviceResultData to exclude loading period, etc.
-        if (mDeviceResultData != null) {
-            CLog.e("Intent timestamp: " + mDeviceResultData.getEvents(0).getTimestamp());
-        }
-
         // TODO: Find a way to send the results to the same directory as the inv. log files
         try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
             long loadTime = 0L;
