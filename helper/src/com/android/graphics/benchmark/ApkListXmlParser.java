@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -78,8 +79,14 @@ public class ApkListXmlParser {
                     continue;
                 }
                 Element argElement = (Element) argNode;
+                String type = argElement.getAttribute("type");
+                if (type == null || type.isEmpty()) {
+                    type = "STRING";
+                }
                 args.add(new ApkInfo.Argument(
-                        argElement.getTagName(), argElement.getTextContent()));
+                        argElement.getTagName(),
+                        argElement.getTextContent(),
+                        ApkInfo.Argument.Type.valueOf(type.toUpperCase(Locale.US))));
             }
         }
 

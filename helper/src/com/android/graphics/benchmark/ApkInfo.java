@@ -24,12 +24,24 @@ public class ApkInfo {
 
     //TODO: support non-String args.
     public static class Argument {
+        public enum Type {
+            STRING,
+            BOOLEAN,
+            BYTE,
+            INT,
+            LONG,
+            FLOAT,
+            DOUBLE,
+        };
+
         private String mKey;
         private String mValue;
+        private Type mType;
 
-        public Argument(String key, String value) {
+        public Argument(String key, String value, Type type) {
             mKey = key;
             mValue = value;
+            mType = type;
         }
 
         public String getKey() {
@@ -38,6 +50,10 @@ public class ApkInfo {
 
         public String getValue() {
             return mValue;
+        }
+
+        public Type getType() {
+            return mType;
         }
     }
 
