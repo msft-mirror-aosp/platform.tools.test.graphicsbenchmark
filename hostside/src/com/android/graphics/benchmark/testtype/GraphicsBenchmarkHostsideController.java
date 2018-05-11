@@ -77,16 +77,25 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         return mDevice;
     }
 
-    @Option(name = "apk-dir",
-            description = "Directory contains the APKs for benchmarks",
-            importance = Option.Importance.ALWAYS,
-            mandatory = true)
-    private String mApkDir;
-
     @Option(name = "apk-info",
-            description = "A JSON file describing the list of APKs",
+            description = "An XML file describing the list of APKs for qualifications.",
             importance = Option.Importance.ALWAYS)
     private String mApkInfoFileName;
+
+    @Option(name = "apk-dir",
+            description =
+                    "Directory contains the APKs for qualifications.  If --apk-info is not "
+                            + "specified and a file named 'apk-info.xml' exists in --apk-dir, that "
+                            + "file will be used as the apk-info.",
+            importance = Option.Importance.ALWAYS)
+    private String mApkDir;
+
+    private String getApkDir() {
+        if (mApkDir == null) {
+            mApkDir = System.getenv("ANDROID_PRODUCT_OUT") + "/data/app";
+        }
+        return mApkDir;
+    }
 
     @Override
     public Collection<IRemoteTest> split(int shardCountHint) {
@@ -102,7 +111,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             }
             GraphicsBenchmarkHostsideController shard = new GraphicsBenchmarkHostsideController();
             shard.mApks = apkInfo;
-            shard.mApkDir = mApkDir;
+            shard.mApkDir = getApkDir();
 
             shards.add(shard);
         }
@@ -139,7 +148,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
                         String.format(
                                 "Missing APK.  Unable to find %s in %s.",
                                 apk.getFileName(),
-                                mApkDir));
+                                getApkDir()));
             } else {
                 runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
             }
@@ -150,6 +159,8 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             GraphicsBenchmarkMetricCollector.setDeviceResultData(resultData);
 
             listener.testRunEnded(0, runMetrics);
+
+            getDevice().uninstallPackage(apk.getPackageName());
         }
     }
 
@@ -169,13 +180,13 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
 
     /** Find an apk in the apk-dir directory */
     private File findApk(String filename) {
-        File file = new File(mApkDir, filename);
+        File file = new File(getApkDir(), filename);
         if (file.exists()) {
             return file;
         }
         // If a default sample app is named Sample.apk, it is outputted to
         // $ANDROID_PRODUCT_OUT/data/app/Sample/Sample.apk.
-        file = new File(mApkDir, Files.getNameWithoutExtension(filename) + "/" + filename);
+        file = new File(getApkDir(), Files.getNameWithoutExtension(filename) + "/" + filename);
         if (file.exists()) {
             return file;
         }
@@ -194,7 +205,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         if (mApkInfoFileName != null) {
             mApkInfoFile = new File(mApkInfoFileName);
         } else {
-            mApkInfoFile = new File(mApkDir, "apk-info.xml");
+            mApkInfoFile = new File(getApkDir(), "apk-info.xml");
 
             if (!mApkInfoFile.exists()) {
                 String resource = "/com/android/graphics/benchmark/apk-info.xml";

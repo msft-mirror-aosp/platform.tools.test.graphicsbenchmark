@@ -43,8 +43,8 @@ static JNIEnv* getJniEnv() {
 }
 
 // Convert timespec to milliseconds.
-long timespecToMs(timespec spec) {
-    return spec.tv_sec * 1000l + spec.tv_nsec / 1000000l;
+jlong timespecToMs(timespec spec) {
+    return jlong(spec.tv_sec) * 1000 + spec.tv_nsec / 1000000;
 }
 
 // Create an Intent jobject in Java.
@@ -67,10 +67,10 @@ static jobject createIntent() {
                 "putExtra",
                 "(Ljava/lang/String;J)Landroid/content/Intent;");
 
-    long timestamp = timespecToMs(spec);
+    jlong timestamp = timespecToMs(spec);
     env->CallObjectMethod(intent, put_extra, env->NewStringUTF("timestamp"), timestamp);
 
-    LOGD("Created intent %s at %ld", INTENT_START, timestamp);
+    LOGD("Created intent %s at %lld", INTENT_START, (long long)timestamp);
     return intent;
 }
 
