@@ -88,7 +88,41 @@ public class GraphicsBenchmarkTest {
                     .getLaunchIntentForPackage(apk.getPackageName());
 
         for (ApkInfo.Argument argument : mApk.getArgs()) {
-            intent.putExtra(argument.getKey(), argument.getValue());
+            switch(argument.getType()) {
+                case STRING:
+                    intent.putExtra(argument.getKey(), argument.getValue());
+                    break;
+                case BOOLEAN: {
+                    boolean value = Boolean.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case BYTE: {
+                    byte value = Byte.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case INT: {
+                    int value = Integer.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case LONG: {
+                    long value = Long.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case FLOAT: {
+                    float value = Float.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case DOUBLE: {
+                    double value = Double.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+            }
         }
 
         InstrumentationRegistry.getContext().startActivity(intent);
