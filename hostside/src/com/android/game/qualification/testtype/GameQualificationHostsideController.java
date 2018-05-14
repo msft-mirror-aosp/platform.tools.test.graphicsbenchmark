@@ -16,20 +16,25 @@
 
 package com.android.game.qualification.testtype;
 
+import com.android.annotations.Nullable;
+import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
+import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.ApkListXmlParser;
 import com.android.game.qualification.ResultData;
 import com.android.game.qualification.metric.GameQualificationMetricCollector;
 import com.android.game.qualification.proto.ResultDataProto;
-
-import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
-import com.android.tradefed.result.TestDescription;
-import com.android.game.qualification.ApkInfo;
-import com.android.game.qualification.ApkListXmlParser;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
+import com.android.tradefed.device.metric.IMetricCollector;
+import com.android.tradefed.device.metric.IMetricCollectorReceiver;
+import com.android.tradefed.invoker.IInvocationContext;
+import com.android.tradefed.metrics.proto.MetricMeasurement;
 import com.android.tradefed.result.CollectingTestListener;
 import com.android.tradefed.result.ITestInvocationListener;
+import com.android.tradefed.result.TestDescription;
 import com.android.tradefed.testtype.IDeviceTest;
+import com.android.tradefed.testtype.IInvocationContextReceiver;
 import com.android.tradefed.testtype.IRemoteTest;
 import com.android.tradefed.testtype.IShardableTest;
 
@@ -39,9 +44,9 @@ import com.google.common.io.Files;
 import org.xml.sax.SAXException;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -49,12 +54,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-public class GameQualificationHostsideController implements IShardableTest, IDeviceTest {
+public class GameQualificationHostsideController implements
+        IShardableTest, IDeviceTest, IMetricCollectorReceiver, IInvocationContextReceiver {
     // Package and class of the device side test.
     private static final String PACKAGE = "com.android.game.qualification.device";
     private static final String CLASS = PACKAGE + ".GameQualificationTest";
@@ -66,6 +71,10 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
     private ITestDevice mDevice;
     private List<ApkInfo> mApks = null;
     private File mApkInfoFile;
+    private Collection<IMetricCollector> mCollectors;
+    private IInvocationContext mContext;
+    @Nullable
+    private GameQualificationMetricCollector mAGQMetricCollector = null;
 
     @Override
     public void setDevice(ITestDevice device) {
@@ -98,6 +107,21 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
     }
 
     @Override
+    public void setMetricCollectors(List<IMetricCollector> list) {
+        mCollectors = list;
+        for (IMetricCollector collector : list) {
+            if (collector instanceof GameQualificationMetricCollector) {
+                mAGQMetricCollector = (GameQualificationMetricCollector) collector;
+            }
+        }
+    }
+
+    @Override
+    public void setInvocationContext(IInvocationContext iInvocationContext) {
+        mContext = iInvocationContext;
+    }
+
+    @Override
     public Collection<IRemoteTest> split(int shardCountHint) {
         initApkList();
         List<IRemoteTest> shards = new ArrayList<>();
@@ -112,6 +136,8 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
             GameQualificationHostsideController shard = new GameQualificationHostsideController();
             shard.mApks = apkInfo;
             shard.mApkDir = getApkDir();
+            shard.mApkInfoFileName = mApkInfoFileName;
+            shard.mApkInfoFile = mApkInfoFile;
 
             shards.add(shard);
         }
@@ -120,7 +146,13 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
 
     @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
-        Map<String, String> runMetrics = new HashMap<>();
+        assert mAGQMetricCollector != null;
+        for (IMetricCollector collector : mCollectors) {
+            listener = collector.init(mContext, listener);
+        }
+        mAGQMetricCollector.setDevice(getDevice());
+
+        HashMap<String, MetricMeasurement.Metric> runMetrics = new HashMap<>();
 
         initApkList();
         getDevice().pushFile(mApkInfoFile, ApkInfo.APK_LIST_LOCATION);
@@ -128,7 +160,7 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
         for (ApkInfo apk : mApks) {
             File apkFile = findApk(apk.getFileName());
             getDevice().installPackage(apkFile, true);
-            GameQualificationMetricCollector.setAppLayerName(apk);
+            mAGQMetricCollector.setApkInfo(apk);
 
             // Might seem counter-intuitive, but the easiest way to get per-package results is
             // to put this call and the corresponding testRunEnd inside the for loop for now
@@ -137,7 +169,7 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
             // TODO: Migrate to TF TestDescription when available
             TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
 
-            Map<String, String> testMetrics = new HashMap<>();
+            HashMap<String, MetricMeasurement.Metric> testMetrics = new HashMap<>();
             // TODO: Populate metrics
 
             listener.testStarted(identifier);
@@ -156,7 +188,7 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
             listener.testEnded(identifier, testMetrics);
 
             ResultDataProto.Result resultData = retrieveResultData();
-            GameQualificationMetricCollector.setDeviceResultData(resultData);
+            mAGQMetricCollector.setDeviceResultData(resultData);
 
             listener.testRunEnded(0, runMetrics);
 

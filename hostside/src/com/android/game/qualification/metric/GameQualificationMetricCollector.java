@@ -41,23 +41,13 @@ import java.io.IOException;
 /** A {@link ScheduledDeviceMetricCollector} to collect graphics benchmarking stats at regular intervals. */
 public class GameQualificationMetricCollector extends BaseDeviceMetricCollector {
     private long mLatestSeen = 0;
-    private static ApkInfo mTestApk;
-    private static ResultDataProto.Result mDeviceResultData;
+    private ApkInfo mTestApk;
+    private ResultDataProto.Result mDeviceResultData;
     private long mVSyncPeriod = 0;
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mFirstRun = true;
     private boolean mFirstLoop;
-
-    // TODO: Investigate interaction with sharding support
-    public static void setAppLayerName(ApkInfo apk) {
-        mTestApk = apk;
-    }
-
-    // TODO: same sharding concern
-    public static void setDeviceResultData(ResultDataProto.Result resultData) {
-        mDeviceResultData = resultData;
-    }
 
     @Option(
         name = "fixed-schedule-rate",
@@ -74,12 +64,23 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
     private Timer mTimer;
 
+    public void setApkInfo(ApkInfo apk) {
+        mTestApk = apk;
+    }
+
+    public void setDeviceResultData(ResultDataProto.Result resultData) {
+        mDeviceResultData = resultData;
+    }
+
+    public void setDevice(ITestDevice device) {
+        mDevice = device;
+    }
+
     @Override
     public final void onTestRunStart(DeviceMetricData runData) {
-        mDevice = getDevices().get(0);
         CLog.v("Test run started on device %s.", mDevice);
 
-        mElapsedTimes = new ArrayList<Long>();
+        mElapsedTimes = new ArrayList<>();
         mLatestSeen = 0;
         mFirstLoop = true;
 
@@ -247,12 +248,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     private void onEnd(DeviceMetricData runData) {
-
-        // TODO: correlate with mDeviceResultData to exclude loading period, etc.
-        if (mDeviceResultData != null) {
-            CLog.e("Intent timestamp: " + mDeviceResultData.getEvents(0).getTimestamp());
-        }
-
         // TODO: Find a way to send the results to the same directory as the inv. log files
         try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/GameQualification/out.txt", !mFirstRun))) {
 
