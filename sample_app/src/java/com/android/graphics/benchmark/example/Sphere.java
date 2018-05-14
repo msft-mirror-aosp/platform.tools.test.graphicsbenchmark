@@ -135,11 +135,6 @@ public class Sphere {
         double epsilon = 1e-10;
 
         for(double phi = -(Math.PI); phi <= 0 + epsilon; phi += dPhi) {
-            if (!firstLoop) {
-                mIndices.put(points - 2 * mNumSegments + 1);
-                mIndices.put(points - mNumSegments);
-                mNumIndices += 2;
-            }
             //for each stage calculating the slices
             for(double theta = 0.0; theta < (Math.PI * 2) - epsilon; theta+=dTheta) {
                 mSphereVertices.put((float) (mRadius * Math.sin(phi) * Math.cos(theta)) );
@@ -155,8 +150,9 @@ public class Sphere {
 
             }
             if (!firstLoop) {
-                mIndices.put(points - mNumSegments - 1);
-                mIndices.put(points - 2 * mNumSegments + 1);
+                // Finish off layer
+                mIndices.put(points - 2 * mNumSegments);
+                mIndices.put(points - mNumSegments);
                 mNumIndices += 2;
             }
             firstLoop = false;
