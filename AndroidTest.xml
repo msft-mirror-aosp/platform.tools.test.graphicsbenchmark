@@ -1,11 +1,11 @@
-<configuration description="Game benchmark test">
-    <option name="test-tag" value="graphics-benchmark" />
+<configuration description="Game qualification test">
+    <option name="test-tag" value="game-qualification" />
     <target_preparer class="com.android.tradefed.targetprep.InstallBuildEnvApkSetup">
-        <option name="apk-name" value="GraphicsBenchmarkTestCases.apk" />
+        <option name="apk-name" value="GameQualificationTestCases.apk" />
     </target_preparer>
 
-    <metrics_collector class="com.android.graphics.benchmark.metric.GraphicsBenchmarkMetricCollector" />
+    <metrics_collector class="com.android.game.qualification.metric.GameQualificationMetricCollector" />
 
-    <test class="com.android.graphics.benchmark.testtype.GraphicsBenchmarkHostsideController" />
+    <test class="com.android.game.qualification.testtype.GameQualificationHostsideController" />
 
 </configuration>

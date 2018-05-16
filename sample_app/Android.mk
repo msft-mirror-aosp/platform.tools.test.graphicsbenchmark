@@ -20,16 +20,16 @@ LOCAL_SDK_VERSION := 26  # Oreo
 LOCAL_MODULE := libsample
 LOCAL_MODULE_TAGS := tests
 LOCAL_SRC_FILES := src/cpp/sample_activity.cpp
-LOCAL_SHARED_LIBRARIES := libagbench
+LOCAL_SHARED_LIBRARIES := libagq
 
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 
 LOCAL_SDK_VERSION := 26  # Oreo
-LOCAL_PACKAGE_NAME := GraphicsBenchmarkSampleApp
+LOCAL_PACKAGE_NAME := GameQualificationSampleApp
 LOCAL_MODULE_TAGS := tests
-LOCAL_JNI_SHARED_LIBRARIES := libagbench libsample
+LOCAL_JNI_SHARED_LIBRARIES := libagq libsample
 LOCAL_COMPATIBILITY_SUITE := device-tests
 LOCAL_SRC_FILES := $(call all-java-files-under, src/java)
 

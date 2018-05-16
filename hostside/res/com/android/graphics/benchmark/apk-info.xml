@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<apk-info>
-    <apk>
-        <name>sample</name>
-        <fileName>GraphicsBenchmarkSampleApp.apk</fileName>
-        <packageName>com.android.graphics.benchmark.example</packageName>
-        <layerName>SurfaceView - com.android.graphics.benchmark.example/com.android.graphics.benchmark.example.SampleActivity#0</layerName>
-    </apk>
-</apk-info>

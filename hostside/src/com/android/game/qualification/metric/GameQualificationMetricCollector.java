@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark.metric;
+package com.android.game.qualification.metric;
 
-import com.android.graphics.benchmark.ApkInfo;
-import com.android.graphics.benchmark.proto.ResultDataProto;
+import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.proto.ResultDataProto;
 
 import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
 import com.android.tradefed.device.metric.DeviceMetricData;
-import com.android.tradefed.invoker.IInvocationContext;
-import com.android.graphics.benchmark.ApkInfo;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.log.LogUtil.CLog;
@@ -39,10 +37,9 @@ import java.util.ArrayList;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
 
 /** A {@link ScheduledDeviceMetricCollector} to collect graphics benchmarking stats at regular intervals. */
-public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector {
+public class GameQualificationMetricCollector extends BaseDeviceMetricCollector {
     private long mLatestSeen = 0;
     private static ApkInfo mTestApk;
     private static ResultDataProto.Result mDeviceResultData;
@@ -257,12 +254,12 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
         }
 
         // TODO: Find a way to send the results to the same directory as the inv. log files
-        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
+        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/GameQualification/out.txt", !mFirstRun))) {
 
             outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
             if (mDeviceResultData.getEventsCount() == 0) {
-                CLog.w("No start benchmark intent given; assuming single run with no loading period to exclude.");
+                CLog.w("No start intent given; assuming single run with no loading period to exclude.");
             }
 
             long startTime = 0L;
