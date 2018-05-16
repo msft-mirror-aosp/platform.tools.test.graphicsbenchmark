@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include "android_benchmark.h"
+#include "agq.h"
 #include <jni.h>
 #include <android/log.h>
 #include <time.h>
 
-#define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, "AndroidGraphicsBenchmark", __VA_ARGS__))
+#define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, "AndroidGameQualification", __VA_ARGS__))
 
 static JavaVM* sJavaVm = nullptr;
 static JNIEnv* sJniEnv = nullptr;
@@ -33,7 +33,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
 
 namespace android {
 
-static const char* const INTENT_START = "com.android.graphics.benchmark.START";
+static const char* const INTENT_START = "com.android.game.qualification.START";
 
 static JNIEnv* getJniEnv() {
     if (sJniEnv == nullptr) {
@@ -74,16 +74,16 @@ static jobject createIntent() {
     return intent;
 }
 
-// Implementation of AndroidGraphicsBenchmark::Impl.
+// Implementation of android::GameQualification::Impl.
 
-class AndroidGraphicsBenchmark::Impl {
+class GameQualification::Impl {
 public:
-    void startBenchmark(jobject context);
-    void startBenchmark(ANativeActivity* activity);
+    void startLoop(jobject context);
+    void startLoop(ANativeActivity* activity);
 };
 
 
-void AndroidGraphicsBenchmark::Impl::startBenchmark(jobject context) {
+void GameQualification::Impl::startLoop(jobject context) {
     JNIEnv* env = getJniEnv();
     jclass contextClass = env->FindClass("android/content/Context");
     jmethodID method =
@@ -94,27 +94,27 @@ void AndroidGraphicsBenchmark::Impl::startBenchmark(jobject context) {
     env->CallVoidMethod(context, method, createIntent());
 }
 
-void AndroidGraphicsBenchmark::Impl::startBenchmark(ANativeActivity* activity) {
+void GameQualification::Impl::startLoop(ANativeActivity* activity) {
     sJavaVm = activity->vm;
-    startBenchmark(activity->clazz);
+    startLoop(activity->clazz);
 }
 
-/* Implementation of AndroidGraphicsBenchmark */
+/* Implementation of GameQualification */
 
-AndroidGraphicsBenchmark::AndroidGraphicsBenchmark() {
-    mImpl = new AndroidGraphicsBenchmark::Impl();
+GameQualification::GameQualification() {
+    mImpl = new GameQualification::Impl();
 }
 
-AndroidGraphicsBenchmark::~AndroidGraphicsBenchmark() {
+GameQualification::~GameQualification() {
     delete mImpl;
 }
 
-void AndroidGraphicsBenchmark::startBenchmark(jobject context) {
-    mImpl->startBenchmark(context);
+void GameQualification::startLoop(jobject context) {
+    mImpl->startLoop(context);
 }
 
-void AndroidGraphicsBenchmark::startBenchmark(ANativeActivity* activity) {
-    mImpl->startBenchmark(activity);
+void GameQualification::startLoop(ANativeActivity* activity) {
+    mImpl->startLoop(activity);
 }
 
 } // end of namespace android

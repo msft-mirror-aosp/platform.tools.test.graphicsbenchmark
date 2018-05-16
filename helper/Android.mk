@@ -22,7 +22,7 @@ LOCAL_SRC_FILES := \
 	$(call all-java-files-under, src)\
 	$(call all-proto-files-under, proto)
 LOCAL_SDK_VERSION := 26  # Oreo
-LOCAL_MODULE := graphicsbenchmarkhelper
+LOCAL_MODULE := gamequalificationhelper
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_STATIC_JAVA_LIBRARY)
@@ -32,7 +32,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := \
 	$(call all-java-files-under, src) \
 	$(call all-proto-files-under, proto)
-LOCAL_MODULE := graphicsbenchmarkhelper-host
+LOCAL_MODULE := gamequalificationhelper-host
 LOCAL_MODULE_TAGS := optional
 LOCAL_COMPATIBILITY_SUITE := general-tests
 
@@ -43,10 +43,10 @@ include $(BUILD_HOST_JAVA_LIBRARY)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := $(call all-java-files-under, test)
-LOCAL_MODULE := graphicsbenchmarkhelper-test
+LOCAL_MODULE := gamequalificationhelper-test
 LOCAL_MODULE_TAGS := tests
 LOCAL_COMPATIBILITY_SUITE := general-tests
-LOCAL_JAVA_LIBRARIES := graphicsbenchmarkhelper-host junit-host
+LOCAL_JAVA_LIBRARIES := gamequalificationhelper-host junit-host
 
 include $(BUILD_HOST_JAVA_LIBRARY)
 

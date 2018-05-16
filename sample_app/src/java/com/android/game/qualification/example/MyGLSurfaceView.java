@@ -13,11 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.android.game.qualification.example;
 
-package com.android.graphics.benchmark;
+import android.content.Context;
+import android.opengl.GLSurfaceView;
 
-public class ResultData {
-    public static final String RESULT_FILE_LOCATION = "benchmark/result.protobuf";
+class MyGLSurfaceView extends GLSurfaceView {
 
-    private ResultData() {}
+    private final MyGLRenderer mRenderer;
+
+    public MyGLSurfaceView(Context context){
+        super(context);
+
+        // Create an OpenGL ES 2.0 context
+        setEGLContextClientVersion(2);
+
+        mRenderer = new MyGLRenderer();
+
+        // Set the Renderer for drawing on the GLSurfaceView
+        setRenderer(mRenderer);
+    }
 }

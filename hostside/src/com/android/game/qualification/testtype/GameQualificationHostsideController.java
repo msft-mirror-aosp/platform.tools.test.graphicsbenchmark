@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark.testtype;
+package com.android.game.qualification.testtype;
 
-import com.android.graphics.benchmark.metric.GraphicsBenchmarkMetricCollector;
-import com.android.graphics.benchmark.proto.ResultDataProto;
-import com.android.graphics.benchmark.ResultData;
+import com.android.game.qualification.ResultData;
+import com.android.game.qualification.metric.GameQualificationMetricCollector;
+import com.android.game.qualification.proto.ResultDataProto;
 
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.ddmlib.testrunner.TestIdentifier;
-import com.android.graphics.benchmark.ApkInfo;
-import com.android.graphics.benchmark.ApkListXmlParser;
+import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.ApkListXmlParser;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
@@ -54,10 +54,10 @@ import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-public class GraphicsBenchmarkHostsideController implements IShardableTest, IDeviceTest {
+public class GameQualificationHostsideController implements IShardableTest, IDeviceTest {
     // Package and class of the device side test.
-    private static final String PACKAGE = "com.android.graphics.benchmark.device";
-    private static final String CLASS = PACKAGE + ".GraphicsBenchmarkTest";
+    private static final String PACKAGE = "com.android.game.qualification.device";
+    private static final String CLASS = PACKAGE + ".GameQualificationTest";
 
     private static final String AJUR_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
     private static final long DEFAULT_TEST_TIMEOUT_MS = 10 * 60 * 1000L; //10min
@@ -109,7 +109,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             for(int j = i; j < mApks.size(); j += shardCountHint) {
                 apkInfo.add(mApks.get(j));
             }
-            GraphicsBenchmarkHostsideController shard = new GraphicsBenchmarkHostsideController();
+            GameQualificationHostsideController shard = new GameQualificationHostsideController();
             shard.mApks = apkInfo;
             shard.mApkDir = getApkDir();
 
@@ -128,11 +128,11 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         for (ApkInfo apk : mApks) {
             File apkFile = findApk(apk.getFileName());
             getDevice().installPackage(apkFile, true);
-            GraphicsBenchmarkMetricCollector.setAppLayerName(apk);
+            GameQualificationMetricCollector.setAppLayerName(apk);
 
             // Might seem counter-intuitive, but the easiest way to get per-package results is
             // to put this call and the corresponding testRunEnd inside the for loop for now
-            listener.testRunStarted("graphicsbenchmark", mApks.size());
+            listener.testRunStarted("gamequalification", mApks.size());
 
              // TODO: Migrate to TF TestDescription when available
              TestIdentifier identifier = new TestIdentifier(CLASS, "run[" + apk.getName() + "]");
@@ -156,7 +156,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             listener.testEnded(identifier, testMetrics);
 
             ResultDataProto.Result resultData = retrieveResultData();
-            GraphicsBenchmarkMetricCollector.setDeviceResultData(resultData);
+            GameQualificationMetricCollector.setDeviceResultData(resultData);
 
             listener.testRunEnded(0, runMetrics);
 
@@ -208,7 +208,7 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             mApkInfoFile = new File(getApkDir(), "apk-info.xml");
 
             if (!mApkInfoFile.exists()) {
-                String resource = "/com/android/graphics/benchmark/apk-info.xml";
+                String resource = "/com/android/game/qualification/apk-info.xml";
                 try(InputStream inputStream = ApkInfo.class.getResourceAsStream(resource)) {
                     if (inputStream == null) {
                         throw new FileNotFoundException("Unable to find resource: " + resource);

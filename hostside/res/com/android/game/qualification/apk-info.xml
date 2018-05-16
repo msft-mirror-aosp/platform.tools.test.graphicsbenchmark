@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<apk-info>
+    <apk>
+        <name>sample</name>
+        <fileName>GameQualificationSampleApp.apk</fileName>
+        <packageName>com.android.game.qualification.example</packageName>
+        <layerName>SurfaceView - com.android.game.qualification.example/com.android.game.qualification.example.SampleActivity#0</layerName>
+    </apk>
+</apk-info>
