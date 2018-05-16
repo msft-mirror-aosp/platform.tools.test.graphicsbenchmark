@@ -16,11 +16,11 @@
  */
 
 #include <jni.h>
-#include <android_benchmark.h>
+#include <agq.h>
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_android_graphics_benchmark_example_SampleActivity_broadcastIntent(JNIEnv*, jobject instance) {
-    android::AndroidGraphicsBenchmark benchmark;
-    benchmark.startBenchmark(instance);
+Java_com_android_game_qualification_example_SampleActivity_broadcastIntent(JNIEnv*, jobject instance) {
+    android::GameQualification qualification;
+    qualification.startLoop(instance);
 }

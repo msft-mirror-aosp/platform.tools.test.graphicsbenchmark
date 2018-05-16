@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark;
+package com.android.game.qualification;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
