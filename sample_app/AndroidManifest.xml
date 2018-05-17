@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.android.graphics.benchmark.example">
+          package="com.android.game.qualification.example">
 
   <application
       android:allowBackup="false"
-      android:label="SampleBenchmark">
-    <activity android:name=".SampleActivity">
+      android:label="SampleQualificationApp">
+    <activity android:name="com.android.game.qualification.example.SampleActivity">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
 

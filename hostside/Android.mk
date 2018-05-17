@@ -20,11 +20,11 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := $(call all-java-files-under, src)
 LOCAL_JAVA_RESOURCE_DIRS := res
 
-LOCAL_MODULE := GraphicsBenchmarkHost
+LOCAL_MODULE := GameQualificationHost
 
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_JAVA_LIBRARIES := tradefed graphicsbenchmarkhelper-host
+LOCAL_JAVA_LIBRARIES := tradefed gamequalificationhelper-host
 
 LOCAL_COMPATIBILITY_SUITE := general-tests
 

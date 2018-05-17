@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark;
+package com.android.game.qualification;
 
 import java.util.Collection;
 import java.util.List;
 
 public class ApkInfo {
-    public static final String APK_LIST_LOCATION = "/sdcard/benchmark/apk-info.xml";
+public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-info.xml";
 
     //TODO: support non-String args.
     public static class Argument {

@@ -13,11 +13,11 @@
 // limitations under the License.
 
 cc_library_shared {
-    name: "libagbench",
+    name: "libagq",
     sdk_version: "current",
 
     srcs: [
-        "android_benchmark.cpp"
+        "agq.cpp"
     ],
     export_include_dirs: ["."],
     shared_libs: ["liblog"],
