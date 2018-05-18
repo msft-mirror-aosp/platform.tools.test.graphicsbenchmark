@@ -29,12 +29,16 @@ import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Directionality;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Measurements;
 import com.android.tradefed.config.Option;
+import com.android.tradefed.result.LogDataType;
+import com.android.tradefed.result.FileInputStreamSource;
+import com.android.tradefed.result.InputStreamSource;
 
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.ArrayList;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
@@ -46,7 +50,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private long mVSyncPeriod = 0;
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
-    private boolean mFirstRun = true;
+    private int mRunCount = 0;
     private boolean mFirstLoop;
 
     @Option(
@@ -248,37 +252,43 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     private void onEnd(DeviceMetricData runData) {
-        // TODO: Find a way to send the results to the same directory as the inv. log files
-        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/GameQualification/out.txt", !mFirstRun))) {
 
-            outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
+        try {
+            File tmpFile = File.createTempFile("GameQualification", ".txt");
+            try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
 
-            if (mDeviceResultData.getEventsCount() == 0) {
-                CLog.w("No start intent given; assuming single run with no loading period to exclude.");
-            }
+                outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
-            long startTime = 0L;
-            int runIndex = 0;
-            for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
-                if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
-                    continue;
+                if (mDeviceResultData.getEventsCount() == 0) {
+                    CLog.w("No start intent given; assuming single run with no loading period to exclude.");
                 }
 
-                long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
+                long startTime = 0L;
+                int runIndex = 0;
+                for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
+                    if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
+                        continue;
+                    }
 
-                if (startTime != 0) {
-                    processTimestampsSlice(runIndex++, startTime, endTime, outputFile, runData);
+                    long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
+
+                    if (startTime != 0) {
+                        processTimestampsSlice(runIndex++, startTime, endTime, outputFile, runData);
+                    }
+                    startTime = endTime;
                 }
-                startTime = endTime;
+
+                processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1), outputFile, runData);
+
+                try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
+                    testLog("GameQualification-run" + mRunCount++, LogDataType.TEXT, source);
+                }
+                mRunCount++;
             }
-
-            processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1), outputFile, runData);
-
+            tmpFile.delete();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-        mFirstRun = false;
     }
 
     private Metric.Builder getFpsMetric(double value) {
