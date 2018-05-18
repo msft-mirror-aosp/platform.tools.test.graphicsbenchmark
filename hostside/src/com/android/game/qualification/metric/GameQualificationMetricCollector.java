@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark.metric;
+package com.android.game.qualification.metric;
 
-import com.android.graphics.benchmark.ApkInfo;
-import com.android.graphics.benchmark.proto.ResultDataProto;
+import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.proto.ResultDataProto;
 
 import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
 import com.android.tradefed.device.metric.DeviceMetricData;
-import com.android.tradefed.invoker.IInvocationContext;
-import com.android.graphics.benchmark.ApkInfo;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.log.LogUtil.CLog;
@@ -39,28 +37,17 @@ import java.util.ArrayList;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
 
 /** A {@link ScheduledDeviceMetricCollector} to collect graphics benchmarking stats at regular intervals. */
-public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector {
+public class GameQualificationMetricCollector extends BaseDeviceMetricCollector {
     private long mLatestSeen = 0;
-    private static ApkInfo mTestApk;
-    private static ResultDataProto.Result mDeviceResultData;
+    private ApkInfo mTestApk;
+    private ResultDataProto.Result mDeviceResultData;
     private long mVSyncPeriod = 0;
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mFirstRun = true;
     private boolean mFirstLoop;
-
-    // TODO: Investigate interaction with sharding support
-    public static void setAppLayerName(ApkInfo apk) {
-        mTestApk = apk;
-    }
-
-    // TODO: same sharding concern
-    public static void setDeviceResultData(ResultDataProto.Result resultData) {
-        mDeviceResultData = resultData;
-    }
 
     @Option(
         name = "fixed-schedule-rate",
@@ -77,12 +64,23 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
 
     private Timer mTimer;
 
+    public void setApkInfo(ApkInfo apk) {
+        mTestApk = apk;
+    }
+
+    public void setDeviceResultData(ResultDataProto.Result resultData) {
+        mDeviceResultData = resultData;
+    }
+
+    public void setDevice(ITestDevice device) {
+        mDevice = device;
+    }
+
     @Override
     public final void onTestRunStart(DeviceMetricData runData) {
-        mDevice = getDevices().get(0);
         CLog.v("Test run started on device %s.", mDevice);
 
-        mElapsedTimes = new ArrayList<Long>();
+        mElapsedTimes = new ArrayList<>();
         mLatestSeen = 0;
         mFirstLoop = true;
 
@@ -250,19 +248,13 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     }
 
     private void onEnd(DeviceMetricData runData) {
-
-        // TODO: correlate with mDeviceResultData to exclude loading period, etc.
-        if (mDeviceResultData != null) {
-            CLog.e("Intent timestamp: " + mDeviceResultData.getEvents(0).getTimestamp());
-        }
-
         // TODO: Find a way to send the results to the same directory as the inv. log files
-        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
+        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/GameQualification/out.txt", !mFirstRun))) {
 
             outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
             if (mDeviceResultData.getEventsCount() == 0) {
-                CLog.w("No start benchmark intent given; assuming single run with no loading period to exclude.");
+                CLog.w("No start intent given; assuming single run with no loading period to exclude.");
             }
 
             long startTime = 0L;

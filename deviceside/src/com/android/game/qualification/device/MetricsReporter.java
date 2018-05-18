@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.graphics.benchmark.device;
+package com.android.game.qualification.device;
 
 import java.io.File;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.List;
 
-import com.android.graphics.benchmark.proto.ResultDataProto;
-import com.android.graphics.benchmark.ResultData;
+import com.android.game.qualification.proto.ResultDataProto;
+import com.android.game.qualification.ResultData;
 
 public class MetricsReporter {
     private String appName;

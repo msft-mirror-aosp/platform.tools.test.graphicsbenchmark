@@ -1,8 +1,8 @@
 syntax = "proto2";
 
-package graphicsbenchmark_proto;
+package gamequalification_proto;
 
-option java_package = "com.android.graphics.benchmark.proto";
+option java_package = "com.android.game.qualification.proto";
 option java_outer_classname = "ResultDataProto";
 
 message Event {
