@@ -24,7 +24,7 @@ LOCAL_MODULE := GameQualificationHost
 
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_JAVA_LIBRARIES := tradefed gamequalificationhelper-host
+LOCAL_JAVA_LIBRARIES := tradefed GameQualificationHelperHost
 
 LOCAL_COMPATIBILITY_SUITE := general-tests
 
