@@ -16,16 +16,23 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE_TAGS := tests
 LOCAL_SDK_VERSION := 26  # Oreo
+LOCAL_MODULE := libsample
+LOCAL_MODULE_TAGS := tests
+LOCAL_SRC_FILES := src/cpp/sample_activity.cpp
+LOCAL_SHARED_LIBRARIES := libagq
 
-LOCAL_PACKAGE_NAME := GameQualificationTestCases
+include $(BUILD_SHARED_LIBRARY)
 
-LOCAL_STATIC_JAVA_LIBRARIES := android-support-test gamequalificationhelper
-LOCAL_JAVA_LIBRARIES := android.test.runner.stubs
+include $(CLEAR_VARS)
 
+LOCAL_SDK_VERSION := 26  # Oreo
+LOCAL_PACKAGE_NAME := GameQualificationSampleApp
+LOCAL_MODULE_TAGS := tests
+LOCAL_JNI_SHARED_LIBRARIES := libagq libsample
 LOCAL_COMPATIBILITY_SUITE := device-tests
-
-LOCAL_SRC_FILES := $(call all-java-files-under, src)
+LOCAL_SRC_FILES := $(call all-java-files-under, src/java)
 
 include $(BUILD_PACKAGE)
+
+include $(call all-makefiles-under,$(LOCAL_PATH))

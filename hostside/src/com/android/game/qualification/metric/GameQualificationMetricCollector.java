@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark.metric;
+package com.android.game.qualification.metric;
 
-import com.android.graphics.benchmark.ApkInfo;
-import com.android.graphics.benchmark.proto.ResultDataProto;
+import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.proto.ResultDataProto;
 
 import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
 import com.android.tradefed.device.metric.DeviceMetricData;
-import com.android.tradefed.invoker.IInvocationContext;
-import com.android.graphics.benchmark.ApkInfo;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.log.LogUtil.CLog;
@@ -34,11 +32,9 @@ import java.util.ArrayList;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
 
 /** A {@link ScheduledDeviceMetricCollector} to collect graphics benchmarking stats at regular intervals. */
-public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector {
-
+public class GameQualificationMetricCollector extends BaseDeviceMetricCollector {
     private long mLatestSeen = 0;
     private static ApkInfo mTestApk;
     private static ResultDataProto.Result mDeviceResultData;
@@ -46,6 +42,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mFirstRun = true;
+    private boolean mFirstLoop;
 
     // TODO: Investigate interaction with sharding support
     public static void setAppLayerName(ApkInfo apk) {
@@ -68,20 +65,19 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
         description = "the interval between two tasks being scheduled",
         isTimeVal = true
     )
-    private long mIntervalMs = 1 * 1000l;
+    private long mIntervalMs = 1 * 1000L;
 
     private Timer mTimer;
 
     @Override
     public final void onTestRunStart(DeviceMetricData runData) {
-        CLog.e("Attempt to get device from onTestRunStart");
         mDevice = getDevices().get(0);
-        CLog.e("Device : " + mDevice);
+        CLog.v("Test run started on device %s.", mDevice);
 
         mElapsedTimes = new ArrayList<Long>();
         mLatestSeen = 0;
+        mFirstLoop = true;
 
-        CLog.e("starting");
         onStart(runData);
         mTimer = new Timer();
         TimerTask timerTask =
@@ -93,8 +89,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
                         } catch (InterruptedException e) {
                             mTimer.cancel();
                             Thread.currentThread().interrupt();
-                            CLog.e("Interrupted exception thrown from task:");
-                            CLog.e(e);
+                            CLog.e("Interrupted exception thrown from task: %s", e);
                         }
                     }
                 };
@@ -113,7 +108,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
             mTimer.purge();
         }
         onEnd(runData);
-        CLog.d("finished");
+        CLog.d("onTestRunEnd");
     }
 
 
@@ -125,25 +120,25 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
      */
     private void collect(DeviceMetricData runData) throws InterruptedException {
         try {
-            CLog.e("Running benchmarking stats...");
-
-            String cmd;
-            String[] layerList;
 
             if (mTestApk == null) {
-                CLog.e("No test apk provided!");
+                CLog.e("No test apk info provided.");
                 return;
             }
+            CLog.d("Collecting benchmark stats for layer: %s", mTestApk.getLayerName());
 
-            CLog.e("Target Layer: " + mTestApk.getLayerName());
-
-            boolean firstLoop = true;
-            cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
+            String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
             String[] raw = mDevice.executeShellCommand(cmd).split("\n");
 
-            if (firstLoop) {
+            if (mFirstLoop) {
+                if (raw.length == 1) {
+                    // We didn't get any frame timestamp info.  Mostly likely because the app has
+                    // not started yet.  Or the app layer name is wrong.
+                    // TODO: figure out how to report it if the app layer name is wrong.
+                    return;
+                }
                 mVSyncPeriod = Long.parseLong(raw[0]);
-                firstLoop = false;
+                mFirstLoop = false;
             }
 
             boolean overlap = false;
@@ -157,8 +152,9 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
                 }
             }
 
-            if (!overlap)
+            if (!overlap) {
                 CLog.e("No overlap with previous poll, we missed some frames!"); // FIND SOMETHING BETTER
+            }
 
         } catch (DeviceNotAvailableException | NullPointerException e) {
             CLog.e(e);
@@ -176,10 +172,7 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
             return true;
         }
         else {
-            // Ignore the first timestamp.
-            if (mLatestSeen != 0) {
-                mElapsedTimes.add(timeStamp - mLatestSeen);
-            }
+            mElapsedTimes.add(timeStamp);
             mLatestSeen = timeStamp;
             return false;
         }
@@ -188,41 +181,94 @@ public class GraphicsBenchmarkMetricCollector extends BaseDeviceMetricCollector 
 
     private void onStart(DeviceMetricData runData) {}
 
-    private void onEnd(DeviceMetricData runData) {
+    private void processTimestampsSlice(int runIndex, long startTimestamp, long endTimestamp, BufferedWriter outputFile, DeviceMetricData runData) throws IOException {
         double minFPS = Double.MAX_VALUE;
         double maxFPS = 0.0;
         long totalTimeNs = 0;
 
-        // TODO: correlate with mDeviceResultData to exclude loading period, etc.
+        outputFile.write("Started run " + runIndex + " at: " + startTimestamp + " ns \n");
 
-        // TODO: Find a way to send the results to the same directory as the inv. log files
-        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/graphics-benchmark/out.txt", !mFirstRun))) {
-            outputFile.write("VSync Period: " + mVSyncPeriod + "\n");
+        outputFile.write("Frame Time\t\tFrames Per Second\n");
 
-            outputFile.write("Times:\n");
-            for(Long time : mElapsedTimes)
-            {
-                double currentFPS = 1.0e9/time;
-                minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
-                maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
-                totalTimeNs += time;
+        long prevTime = 0L;
+        int numOfTimestamps = 0;
 
-                outputFile.write(currentFPS + "\n");
+        for(long time : mElapsedTimes)
+        {
+            if (time < startTimestamp) {
+                continue;
+            }
+            if (time > endTimestamp) {
+                break;
             }
 
-            outputFile.write("\nSTATS\n");
+            if (prevTime == 0) {
+                prevTime = time;
+                continue;
+            }
 
-            double avgFPS = mElapsedTimes.size() * 1.0e9 / totalTimeNs;
+            long timeDiff = time - prevTime;
+            prevTime = time;
 
-            outputFile.write("min FPS = " + minFPS + "\n");
-            outputFile.write("max FPS = " + maxFPS + "\n");
-            outputFile.write("avg FPS = " + avgFPS + "\n");
+            double currentFPS = 1.0e9/timeDiff;
+            minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
+            maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
+            totalTimeNs += timeDiff;
+            numOfTimestamps++;
 
-            runData.addStringMetric("min_fps", Double.toString(minFPS));
-            runData.addStringMetric("max_fps", Double.toString(minFPS));
-            runData.addStringMetric("fps", Double.toString(avgFPS));
+            outputFile.write(timeDiff + " ns\t\t" + currentFPS + " fps\n");
+        }
 
-            outputFile.write("\n");
+        // There's a fair amount of slop in the system wrt device timing vs host orchestration,
+        // so it's possible that we'll receive an extra intent after we've stopped caring.
+        if (numOfTimestamps == 0) {
+            outputFile.write("No samples in period, assuming spurious intent.\n\n");
+            return;
+        }
+
+        outputFile.write("\nSTATS\n");
+
+        double avgFPS = numOfTimestamps * 1.0e9 / totalTimeNs;
+
+        outputFile.write("min FPS = " + minFPS + "\n");
+        outputFile.write("max FPS = " + maxFPS + "\n");
+        outputFile.write("avg FPS = " + avgFPS + "\n");
+
+        runData.addStringMetric("run_" + runIndex + ".min_fps", Double.toString(minFPS));
+        runData.addStringMetric("run_" + runIndex + ".max_fps", Double.toString(maxFPS));
+        runData.addStringMetric("run_" + runIndex + ".fps", Double.toString(avgFPS));
+
+        outputFile.write("\n");
+    }
+
+    private void onEnd(DeviceMetricData runData) {
+
+        // TODO: Find a way to send the results to the same directory as the inv. log files
+        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/GameQualification/out.txt", !mFirstRun))) {
+
+            outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
+
+            if (mDeviceResultData.getEventsCount() == 0) {
+                CLog.w("No start intent given; assuming single run with no loading period to exclude.");
+            }
+
+            long startTime = 0L;
+            int runIndex = 0;
+            for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
+                if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
+                    continue;
+                }
+
+                long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
+
+                if (startTime != 0) {
+                    processTimestampsSlice(runIndex++, startTime, endTime, outputFile, runData);
+                }
+                startTime = endTime;
+            }
+
+            processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1), outputFile, runData);
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

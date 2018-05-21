@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark;
+package com.android.game.qualification;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -78,20 +79,33 @@ public class ApkListXmlParser {
                     continue;
                 }
                 Element argElement = (Element) argNode;
+                String type = argElement.getAttribute("type");
+                if (type == null || type.isEmpty()) {
+                    type = "STRING";
+                }
                 args.add(new ApkInfo.Argument(
-                        argElement.getTagName(), argElement.getTextContent()));
+                        argElement.getTagName(),
+                        argElement.getTextContent(),
+                        ApkInfo.Argument.Type.valueOf(type.toUpperCase(Locale.US))));
             }
         }
 
         return new ApkInfo(
-                getElement(element, "name"),
-                getElement(element, "fileName"),
-                getElement(element, "packageName"),
-                getElement(element, "layerName"),
-                args);
+                getElement(element, "name", null),
+                getElement(element, "fileName", null),
+                getElement(element, "packageName", null),
+                getElement(element, "layerName", null),
+                args,
+                Integer.parseInt(getElement(element, "runTime", "10000"))
+                );
     }
 
-    private String getElement(Element element, String tag) {
-        return element.getElementsByTagName(tag).item(0).getTextContent();
+    private String getElement(Element element, String tag, String defaultValue) {
+        NodeList elements = element.getElementsByTagName(tag);
+        if (elements.getLength() > 0) {
+            return elements.item(0).getTextContent();
+        } else {
+            return defaultValue;
+        }
     }
 }

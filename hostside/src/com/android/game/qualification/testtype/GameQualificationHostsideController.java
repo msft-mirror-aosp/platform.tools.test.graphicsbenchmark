@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark.testtype;
+package com.android.game.qualification.testtype;
 
-import com.android.graphics.benchmark.metric.GraphicsBenchmarkMetricCollector;
-import com.android.graphics.benchmark.proto.ResultDataProto;
-import com.android.graphics.benchmark.ResultData;
+import com.android.game.qualification.ResultData;
+import com.android.game.qualification.metric.GameQualificationMetricCollector;
+import com.android.game.qualification.proto.ResultDataProto;
 
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.ddmlib.testrunner.TestIdentifier;
-import com.android.graphics.benchmark.ApkInfo;
-import com.android.graphics.benchmark.ApkListXmlParser;
+import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.ApkListXmlParser;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
@@ -34,6 +34,7 @@ import com.android.tradefed.testtype.IRemoteTest;
 import com.android.tradefed.testtype.IShardableTest;
 
 import com.google.common.io.ByteStreams;
+import com.google.common.io.Files;
 
 import org.xml.sax.SAXException;
 
@@ -53,10 +54,10 @@ import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-public class GraphicsBenchmarkHostsideController implements IShardableTest, IDeviceTest {
+public class GameQualificationHostsideController implements IShardableTest, IDeviceTest {
     // Package and class of the device side test.
-    private static final String PACKAGE = "com.android.graphics.benchmark.device";
-    private static final String CLASS = PACKAGE + ".GraphicsBenchmarkTest";
+    private static final String PACKAGE = "com.android.game.qualification.device";
+    private static final String CLASS = PACKAGE + ".GameQualificationTest";
 
     private static final String AJUR_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
     private static final long DEFAULT_TEST_TIMEOUT_MS = 10 * 60 * 1000L; //10min
@@ -76,16 +77,25 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         return mDevice;
     }
 
-    @Option(name = "apk-dir",
-            description = "Directory contains the APKs for benchmarks",
-            importance = Option.Importance.ALWAYS,
-            mandatory = true)
-    private String mApkDir;
-
     @Option(name = "apk-info",
-            description = "A JSON file describing the list of APKs",
+            description = "An XML file describing the list of APKs for qualifications.",
             importance = Option.Importance.ALWAYS)
     private String mApkInfoFileName;
+
+    @Option(name = "apk-dir",
+            description =
+                    "Directory contains the APKs for qualifications.  If --apk-info is not "
+                            + "specified and a file named 'apk-info.xml' exists in --apk-dir, that "
+                            + "file will be used as the apk-info.",
+            importance = Option.Importance.ALWAYS)
+    private String mApkDir;
+
+    private String getApkDir() {
+        if (mApkDir == null) {
+            mApkDir = System.getenv("ANDROID_PRODUCT_OUT") + "/data/app";
+        }
+        return mApkDir;
+    }
 
     @Override
     public Collection<IRemoteTest> split(int shardCountHint) {
@@ -99,9 +109,9 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             for(int j = i; j < mApks.size(); j += shardCountHint) {
                 apkInfo.add(mApks.get(j));
             }
-            GraphicsBenchmarkHostsideController shard = new GraphicsBenchmarkHostsideController();
+            GameQualificationHostsideController shard = new GameQualificationHostsideController();
             shard.mApks = apkInfo;
-            shard.mApkDir = mApkDir;
+            shard.mApkDir = getApkDir();
 
             shards.add(shard);
         }
@@ -116,12 +126,13 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         getDevice().pushFile(mApkInfoFile, ApkInfo.APK_LIST_LOCATION);
 
         for (ApkInfo apk : mApks) {
-            getDevice().installPackage(new File(mApkDir, apk.getFileName()), true);
-            GraphicsBenchmarkMetricCollector.setAppLayerName(apk);
+            File apkFile = findApk(apk.getFileName());
+            getDevice().installPackage(apkFile, true);
+            GameQualificationMetricCollector.setAppLayerName(apk);
 
             // Might seem counter-intuitive, but the easiest way to get per-package results is
             // to put this call and the corresponding testRunEnd inside the for loop for now
-            listener.testRunStarted("graphicsbenchmark", mApks.size());
+            listener.testRunStarted("gamequalification", mApks.size());
 
              // TODO: Migrate to TF TestDescription when available
              TestIdentifier identifier = new TestIdentifier(CLASS, "run[" + apk.getName() + "]");
@@ -130,13 +141,26 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             // TODO: Populate metrics
 
             listener.testStarted(identifier);
-            runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
+
+            if (apkFile == null) {
+                listener.testFailed(
+                        identifier,
+                        String.format(
+                                "Missing APK.  Unable to find %s in %s.",
+                                apk.getFileName(),
+                                getApkDir()));
+            } else {
+                runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
+            }
+
             listener.testEnded(identifier, testMetrics);
 
             ResultDataProto.Result resultData = retrieveResultData();
-            GraphicsBenchmarkMetricCollector.setDeviceResultData(resultData);
+            GameQualificationMetricCollector.setDeviceResultData(resultData);
 
             listener.testRunEnded(0, runMetrics);
+
+            getDevice().uninstallPackage(apk.getPackageName());
         }
     }
 
@@ -147,11 +171,25 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
             try (InputStream inputStream = new FileInputStream(resultFile)) {
                 ResultDataProto.Result data = ResultDataProto.Result.parseFrom(inputStream);
                 return data;
-            } catch(IOException e) {
+            } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
+        return null;
+    }
 
+    /** Find an apk in the apk-dir directory */
+    private File findApk(String filename) {
+        File file = new File(getApkDir(), filename);
+        if (file.exists()) {
+            return file;
+        }
+        // If a default sample app is named Sample.apk, it is outputted to
+        // $ANDROID_PRODUCT_OUT/data/app/Sample/Sample.apk.
+        file = new File(getApkDir(), Files.getNameWithoutExtension(filename) + "/" + filename);
+        if (file.exists()) {
+            return file;
+        }
         return null;
     }
 
@@ -159,21 +197,30 @@ public class GraphicsBenchmarkHostsideController implements IShardableTest, IDev
         if (mApks != null) {
             return;
         }
+
+        // Find an apk info file.  The priorities are:
+        // 1. Use the specified apk-info if available.
+        // 2. Use 'apk-info.xml' if there is one in the apk-dir directory.
+        // 3. Use the default apk-info.xml in res.
         if (mApkInfoFileName != null) {
             mApkInfoFile = new File(mApkInfoFileName);
         } else {
-            String resource = "/com/android/graphics/benchmark/apk-info.xml";
-            try(InputStream inputStream = ApkInfo.class.getResourceAsStream(resource)) {
-                if (inputStream == null) {
-                    throw new FileNotFoundException("Unable to find resource: " + resource);
+            mApkInfoFile = new File(getApkDir(), "apk-info.xml");
+
+            if (!mApkInfoFile.exists()) {
+                String resource = "/com/android/game/qualification/apk-info.xml";
+                try(InputStream inputStream = ApkInfo.class.getResourceAsStream(resource)) {
+                    if (inputStream == null) {
+                        throw new FileNotFoundException("Unable to find resource: " + resource);
+                    }
+                    mApkInfoFile = File.createTempFile("apk-info", ".xml");
+                    try (OutputStream ostream = new FileOutputStream(mApkInfoFile)) {
+                        ByteStreams.copy(inputStream, ostream);
+                    }
+                    mApkInfoFile.deleteOnExit();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
-                mApkInfoFile = File.createTempFile("apk-info", ".xml");
-                try (OutputStream ostream = new FileOutputStream(mApkInfoFile)) {
-                    ByteStreams.copy(inputStream, ostream);
-                }
-                mApkInfoFile.deleteOnExit();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
             }
         }
         ApkListXmlParser parser = new ApkListXmlParser();

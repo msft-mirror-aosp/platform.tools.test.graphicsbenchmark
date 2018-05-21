@@ -13,37 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.graphics.benchmark.device;
+package com.android.game.qualification.device;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.OutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.List;
+
+import com.android.game.qualification.proto.ResultDataProto;
+import com.android.game.qualification.ResultData;
 
 public class MetricsReporter {
     private String appName;
-    private List<Long> loopStartTimesMsecs = new ArrayList<>();
+    private ResultDataProto.Result.Builder builder = ResultDataProto.Result.newBuilder();
 
     public void begin(String appName) {
         this.appName = appName;
     }
 
-    public void startLoop(long timestampNsecs) {
-        loopStartTimesMsecs.add(timestampNsecs);
+    public void startLoop(long timestampMsecs) {
+        builder.addEvents(ResultDataProto.Event.newBuilder()
+                .setType(ResultDataProto.Event.Type.START_LOOP)
+                .setTimestamp(timestampMsecs).build());
     }
 
     public void end() throws IOException {
-        File file = new File("/sdcard/benchmark-" + appName + ".csv");
+        File file = new File("/sdcard/" + ResultData.RESULT_FILE_LOCATION);
         Files.deleteIfExists(file.toPath());
-        try (Writer writer = new BufferedWriter(new FileWriter(file))) {
-            for (Long timestamp : loopStartTimesMsecs) {
-                writer.append(timestamp.toString());
-                writer.append('\n');
-            }
+
+        try (OutputStream outputStream = new FileOutputStream(file)) {
+            builder.build().writeTo(outputStream);
         }
     }
 }

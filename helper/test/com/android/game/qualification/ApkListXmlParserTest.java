@@ -1,9 +1,8 @@
-package com.android.graphics.benchmark;
+package com.android.game.qualification;
 
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,7 +50,7 @@ public class ApkListXmlParserTest {
                         + "        <packageName>com.foo.test</packageName>\n"
                         + "        <args>\n"
                         + "            <key1>value1</key1>"
-                        + "            <key2>value2</key2>"
+                        + "            <key2 type=\"int\">value2</key2>"
                         + "        </args>\n"
                         + "    </apk>\n"
                         + "</apk-info>\n").getBytes())) {
@@ -64,8 +63,10 @@ public class ApkListXmlParserTest {
             List<ApkInfo.Argument> args = apk.getArgs();
             assertEquals("key1", args.get(0).getKey());
             assertEquals("value1", args.get(0).getValue());
+            assertEquals(ApkInfo.Argument.Type.STRING, args.get(0).getType());
             assertEquals("key2", args.get(1).getKey());
             assertEquals("value2", args.get(1).getValue());
+            assertEquals(ApkInfo.Argument.Type.INT, args.get(1).getType());
         }
     }
 

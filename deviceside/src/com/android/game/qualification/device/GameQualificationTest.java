@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.graphics.benchmark.device;
+package com.android.game.qualification.device;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -25,8 +25,8 @@ import android.os.Looper;
 import android.support.test.InstrumentationRegistry;
 import android.util.Log;
 
-import com.android.graphics.benchmark.ApkInfo;
-import com.android.graphics.benchmark.ApkListXmlParser;
+import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.ApkListXmlParser;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,10 +43,10 @@ import java.util.List;
 import javax.xml.parsers.ParserConfigurationException;
 
 @RunWith(Parameterized.class)
-public class GraphicsBenchmarkTest {
-    public static final String INTENT_ACTION = "com.android.graphics.benchmark.START";
+public class GameQualificationTest {
+    public static final String INTENT_ACTION = "com.android.game.qualification.START";
 
-    private static final String TAG = "GraphicsBenchmarkTest";
+    private static final String TAG = "GameQualificationTest";
 
     @Parameters(name = "{0}")
     public static Iterable<Object[]> data()
@@ -69,6 +69,7 @@ public class GraphicsBenchmarkTest {
 
     private Handler mHandler;
     private MetricsReporter mReport = new MetricsReporter();
+    private boolean mGotIntent = false;
 
     @Test public void run() throws IntentFilter.MalformedMimeTypeException, IOException {
         startApp(mApk);
@@ -87,11 +88,49 @@ public class GraphicsBenchmarkTest {
                     .getLaunchIntentForPackage(apk.getPackageName());
 
         for (ApkInfo.Argument argument : mApk.getArgs()) {
-            intent.putExtra(argument.getKey(), argument.getValue());
+            switch(argument.getType()) {
+                case STRING:
+                    intent.putExtra(argument.getKey(), argument.getValue());
+                    break;
+                case BOOLEAN: {
+                    boolean value = Boolean.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case BYTE: {
+                    byte value = Byte.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case INT: {
+                    int value = Integer.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case LONG: {
+                    long value = Long.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case FLOAT: {
+                    float value = Float.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+                case DOUBLE: {
+                    double value = Double.valueOf(argument.getValue());
+                    intent.putExtra(argument.getKey(), value);
+                    break;
+                }
+            }
         }
 
         InstrumentationRegistry.getContext().startActivity(intent);
-        mHandler.postDelayed(() -> mHandler.getLooper().quit(), 10000);
+        mHandler.postDelayed(() -> {
+            if (!mGotIntent) {
+                mHandler.getLooper().quit();
+            }
+        }, mApk.getRunTime());
         Looper.loop();
         mReport.end();
     }
@@ -103,6 +142,10 @@ public class GraphicsBenchmarkTest {
                 long timestamp = intent.getLongExtra("timestamp", 0);
                 Log.d(TAG, "Received intent at " + timestamp);
                 mReport.startLoop(timestamp);
+                if (!mGotIntent) {
+                    mHandler.postDelayed(() -> mHandler.getLooper().quit(), mApk.getRunTime());
+                    mGotIntent = true;
+                }
             }
         };
         IntentFilter intentFilter = new IntentFilter(INTENT_ACTION, "text/plain");
