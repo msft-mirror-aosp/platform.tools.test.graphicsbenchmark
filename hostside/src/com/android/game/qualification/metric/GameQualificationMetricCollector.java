@@ -194,6 +194,8 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private void processTimestampsSlice(int runIndex, long startTimestamp, long endTimestamp, BufferedWriter outputFile, DeviceMetricData runData) throws IOException {
         double minFPS = Double.MAX_VALUE;
         double maxFPS = 0.0;
+        long minFrameTime = Long.MAX_VALUE;
+        long maxFrameTime = 0;
         long totalTimeNs = 0;
 
         outputFile.write("Started run " + runIndex + " at: " + startTimestamp + " ns \n");
@@ -223,6 +225,10 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             double currentFPS = 1.0e9/timeDiff;
             minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
             maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
+
+            minFrameTime = (timeDiff < minFrameTime ? timeDiff : minFrameTime);
+            maxFrameTime = (timeDiff > maxFrameTime ? timeDiff : maxFrameTime);
+
             totalTimeNs += timeDiff;
             numOfTimestamps++;
 
@@ -239,14 +245,19 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         outputFile.write("\nSTATS\n");
 
         double avgFPS = numOfTimestamps * 1.0e9 / totalTimeNs;
+        long avgFrameTime = totalTimeNs / numOfTimestamps;
 
-        outputFile.write("min FPS = " + minFPS + "\n");
-        outputFile.write("max FPS = " + maxFPS + "\n");
-        outputFile.write("avg FPS = " + avgFPS + "\n");
+        outputFile.write("max Frame Time: " + maxFrameTime + " ns\tmin FPS = " + minFPS + " fps\n");
+        outputFile.write("min Frame Time: " + minFrameTime + " ns\tmax FPS = " + maxFPS + " fps\n");
+        outputFile.write("avg Frame Time: " + avgFrameTime + " ns\tavg FPS = " + avgFPS + " fps\n");
 
         runData.addMetric("run_" + runIndex + ".min_fps", getFpsMetric(minFPS));
         runData.addMetric("run_" + runIndex + ".max_fps", getFpsMetric(maxFPS));
         runData.addMetric("run_" + runIndex + ".fps", getFpsMetric(avgFPS));
+
+        runData.addMetric("run_" + runIndex + ".min_frametime", getFrameTimeMetric(minFrameTime));
+        runData.addMetric("run_" + runIndex + ".max_frametime", getFrameTimeMetric(maxFrameTime));
+        runData.addMetric("run_" + runIndex + ".frametime", getFrameTimeMetric(avgFrameTime));
 
         outputFile.write("\n");
     }
@@ -297,5 +308,13 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             .setDirection(Directionality.UP_BETTER)
             .setType(DataType.PROCESSED)
             .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
+    }
+
+    private Metric.Builder getFrameTimeMetric(long value) {
+    	return Metric.newBuilder()
+    		.setUnit("ns")
+    		.setDirection(Directionality.DOWN_BETTER)
+    		.setType(DataType.PROCESSED)
+    		.setMeasurements(Measurements.newBuilder().setSingleInt(value));
     }
 }
