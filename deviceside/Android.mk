@@ -21,7 +21,7 @@ LOCAL_SDK_VERSION := 26  # Oreo
 
 LOCAL_PACKAGE_NAME := GameQualificationTestCases
 
-LOCAL_STATIC_JAVA_LIBRARIES := android-support-test gamequalificationhelper
+LOCAL_STATIC_JAVA_LIBRARIES := android-support-test GameQualificationHelper
 LOCAL_JAVA_LIBRARIES := android.test.runner.stubs
 
 LOCAL_COMPATIBILITY_SUITE := device-tests
