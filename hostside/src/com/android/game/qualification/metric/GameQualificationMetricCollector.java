@@ -50,7 +50,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private long mVSyncPeriod = 0;
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
-    private int mRunCount = 0;
     private boolean mFirstLoop;
 
     @Option(
@@ -291,10 +290,10 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
                 processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1), outputFile, runData);
 
+                outputFile.flush();
                 try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
-                    testLog("GameQualification-run" + mRunCount++, LogDataType.TEXT, source);
+                    testLog("GameQualification-" + mTestApk.getName(), LogDataType.TEXT, source);
                 }
-                mRunCount++;
             }
             tmpFile.delete();
         } catch (IOException e) {
