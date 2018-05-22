@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.game.qualification;
+package com.android.game.qualification.helper;
+
+import com.android.game.qualification.ApkListXmlParserTest;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
