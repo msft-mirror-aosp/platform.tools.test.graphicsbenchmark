@@ -269,7 +269,9 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     private void onEnd(DeviceMetricData runData) {
-
+        if (mElapsedTimes.isEmpty()) {
+            return;
+        }
         try {
             File tmpFile = File.createTempFile("GameQualification", ".txt");
             try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
