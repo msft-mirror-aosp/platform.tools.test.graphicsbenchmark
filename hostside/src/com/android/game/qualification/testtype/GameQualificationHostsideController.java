@@ -174,7 +174,11 @@ public class GameQualificationHostsideController implements
 
             listener.testStarted(identifier);
 
-            if (apkFile == null) {
+            if (getDevice().getKeyguardState().isKeyguardShowing()) {
+                listener.testFailed(
+                        identifier,
+                "Unable to unlock device: " + getDevice().getDeviceDescriptor());
+            } else if (apkFile == null) {
                 listener.testFailed(
                         identifier,
                         String.format(
@@ -183,13 +187,11 @@ public class GameQualificationHostsideController implements
                                 getApkDir()));
             } else {
                 runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
+                ResultDataProto.Result resultData = retrieveResultData();
+                mAGQMetricCollector.setDeviceResultData(resultData);
             }
 
             listener.testEnded(identifier, testMetrics);
-
-            ResultDataProto.Result resultData = retrieveResultData();
-            mAGQMetricCollector.setDeviceResultData(resultData);
-
             listener.testRunEnded(0, runMetrics);
 
             getDevice().uninstallPackage(apk.getPackageName());
