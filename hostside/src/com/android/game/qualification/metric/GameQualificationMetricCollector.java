@@ -18,29 +18,32 @@ package com.android.game.qualification.metric;
 
 import com.android.game.qualification.ApkInfo;
 import com.android.game.qualification.proto.ResultDataProto;
-
+import com.android.tradefed.config.Option;
+import com.android.tradefed.device.DeviceNotAvailableException;
+import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
 import com.android.tradefed.device.metric.DeviceMetricData;
-import com.android.tradefed.device.ITestDevice;
-import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.log.LogUtil.CLog;
 import com.android.tradefed.metrics.proto.MetricMeasurement.DataType;
-import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Directionality;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Measurements;
-import com.android.tradefed.config.Option;
-import com.android.tradefed.result.LogDataType;
+import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
+import com.android.tradefed.result.ByteArrayInputStreamSource;
 import com.android.tradefed.result.FileInputStreamSource;
 import com.android.tradefed.result.InputStreamSource;
+import com.android.tradefed.result.LogDataType;
 
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.ArrayList;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /** A {@link ScheduledDeviceMetricCollector} to collect graphics benchmarking stats at regular intervals. */
 public class GameQualificationMetricCollector extends BaseDeviceMetricCollector {
@@ -50,7 +53,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private long mVSyncPeriod = 0;
     private ArrayList<Long> mElapsedTimes;
     private ITestDevice mDevice;
-    private int mRunCount = 0;
     private boolean mFirstLoop;
 
     @Option(
@@ -205,6 +207,8 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         long prevTime = 0L;
         int numOfTimestamps = 0;
 
+        List<Long> frameTimes = new ArrayList<>();
+
         for(long time : mElapsedTimes)
         {
             if (time < startTimestamp) {
@@ -233,6 +237,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             numOfTimestamps++;
 
             outputFile.write(timeDiff + " ns\t\t" + currentFPS + " fps\n");
+            frameTimes.add(timeDiff);
         }
 
         // There's a fair amount of slop in the system wrt device timing vs host orchestration,
@@ -260,10 +265,13 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         runData.addMetric("run_" + runIndex + ".frametime", getFrameTimeMetric(avgFrameTime));
 
         outputFile.write("\n");
+        printHistogram(frameTimes, runIndex);
     }
 
     private void onEnd(DeviceMetricData runData) {
-
+        if (mElapsedTimes.isEmpty()) {
+            return;
+        }
         try {
             File tmpFile = File.createTempFile("GameQualification", ".txt");
             try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
@@ -291,12 +299,29 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
                 processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1), outputFile, runData);
 
+                outputFile.flush();
                 try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
-                    testLog("GameQualification-run" + mRunCount++, LogDataType.TEXT, source);
+                    testLog("GameQualification-" + mTestApk.getName(), LogDataType.TEXT, source);
                 }
-                mRunCount++;
             }
             tmpFile.delete();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    void printHistogram(Collection<Long> frameTimes, int runIndex) {
+        try(ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Histogram histogram =
+                    new Histogram(frameTimes, mVSyncPeriod / 2L, null, 5 * mVSyncPeriod);
+            histogram.plotAscii(output, 100);
+            try(InputStreamSource source = new ByteArrayInputStreamSource(output.toByteArray())) {
+                testLog(
+                        "GameQualification-histogram-" + mTestApk.getName() + "-run" + runIndex,
+                        LogDataType.TEXT,
+                        source);
+            }
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

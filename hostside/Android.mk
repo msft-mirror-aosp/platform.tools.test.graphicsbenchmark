@@ -24,13 +24,23 @@ LOCAL_MODULE := GameQualificationHost
 
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_JAVA_LIBRARIES := tradefed gamequalificationhelper-host
+LOCAL_JAVA_LIBRARIES := tradefed GameQualificationHelperHost
 
 LOCAL_COMPATIBILITY_SUITE := general-tests
 
 include $(BUILD_HOST_JAVA_LIBRARY)
 
 -include tools/tradefederation/core/error_prone_rules.mk
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := GameQualificationHostTest
+LOCAL_MODULE_TAGS := tests
+LOCAL_SRC_FILES := $(call all-java-files-under, test)
+LOCAL_JAVA_LIBRARIES := GameQualificationHost junit-host
+LOCAL_COMPATIBILITY_SUITE := general-tests
+
+include $(BUILD_HOST_JAVA_LIBRARY)
 
 # Build all sub-directories
 include $(call all-makefiles-under,$(LOCAL_PATH))
