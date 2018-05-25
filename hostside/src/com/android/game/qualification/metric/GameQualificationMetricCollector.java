@@ -54,6 +54,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private ArrayList<GameQualificationMetric> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mFirstLoop;
+    private File mRawFile;
 
     @Option(
         name = "fixed-schedule-rate",
@@ -85,6 +86,12 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     @Override
     public final void onTestRunStart(DeviceMetricData runData) {
         CLog.v("Test run started on device %s.", mDevice);
+
+        try {
+            mRawFile = File.createTempFile("GameQualification_RAW_TIMES", ".txt");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         mElapsedTimes = new ArrayList<>();
         mLatestSeen = 0;
@@ -153,20 +160,38 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                 mFirstLoop = false;
             }
 
-            boolean overlap = false;
-            for (int i = 1; i < raw.length; i++) {
-                String[] parts = raw[i].split("\t");
+            try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(mRawFile, true))) {
+                outputFile.write("Vsync: " + raw[0] + "\n");
 
-                if (parts.length == 3) {
-                    if (sample(Long.parseLong(parts[2]), Long.parseLong(parts[1]))) {
-                        overlap = true;
+                outputFile.write(String.format("%20s", "Desired Present Time") + "\t");
+                outputFile.write(String.format("%20s", "Actual Present Time") + "\t");
+                outputFile.write(String.format("%20s", "Frame Ready Time") + "\n");
+
+                boolean overlap = false;
+                for (int i = 1; i < raw.length; i++) {
+                    String[] parts = raw[i].split("\t");
+
+                    if (parts.length == 3) {
+                        if (sample(Long.parseLong(parts[2]), Long.parseLong(parts[1]))) {
+                            overlap = true;
+                        }
                     }
+
+                    outputFile.write(String.format("%20d", Long.parseLong(parts[0])) + "\t");
+                    outputFile.write(String.format("%20d", Long.parseLong(parts[1])) + "\t");
+                    outputFile.write(String.format("%20d", Long.parseLong(parts[2])) + "\n");
                 }
+
+                if (!overlap) {
+                    CLog.e("No overlap with previous poll, we missed some frames!"); // FIND SOMETHING BETTER
+                }
+
+                outputFile.write("\n\n");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
 
-            if (!overlap) {
-                CLog.e("No overlap with previous poll, we missed some frames!"); // FIND SOMETHING BETTER
-            }
+
 
         } catch (DeviceNotAvailableException | NullPointerException e) {
             CLog.e(e);
@@ -197,7 +222,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         MetricSummary presentTimeSummary = new MetricSummary();
         MetricSummary readyTimeSummary = new MetricSummary();
 
-        outputFile.write("Started run " + runIndex + " at: " + startTimestamp + " ns \n");
+        outputFile.write("Started run " + runIndex + " at: " + startTimestamp + " ns\n");
 
         outputFile.write("Present Time\tFrame Ready Time\n");
 
@@ -285,9 +310,14 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             return;
         }
         try {
+            try(InputStreamSource rawData = new FileInputStreamSource(mRawFile, true)) {
+                    testLog("RAW-" + mTestApk.getName(), LogDataType.TEXT, rawData);
+            }
+
+             mRawFile.delete();
+
             File tmpFile = File.createTempFile("GameQualification", ".txt");
             try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
-
                 outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
                 if (mDeviceResultData.getEventsCount() == 0) {
