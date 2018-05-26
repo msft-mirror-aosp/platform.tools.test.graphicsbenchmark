@@ -51,7 +51,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private ApkInfo mTestApk;
     private ResultDataProto.Result mDeviceResultData;
     private long mVSyncPeriod = 0;
-    private ArrayList<Long> mElapsedTimes;
+    private ArrayList<GameQualificationMetric> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mFirstLoop;
 
@@ -158,7 +158,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                 String[] parts = raw[i].split("\t");
 
                 if (parts.length == 3) {
-                    if (sample(Long.parseLong(parts[2]))) {
+                    if (sample(Long.parseLong(parts[2]), Long.parseLong(parts[1]))) {
                         overlap = true;
                     }
                 }
@@ -173,19 +173,19 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         }
     }
 
-    private boolean sample(long timeStamp) {
-        if (timeStamp == Long.MAX_VALUE) {
+    private boolean sample(long readyTimeStamp, long presentTimeStamp) {
+        if (presentTimeStamp == Long.MAX_VALUE) {
             return true;
         }
-        else if (timeStamp < mLatestSeen) {
+        else if (presentTimeStamp < mLatestSeen) {
             return false;
         }
-        else if (timeStamp == mLatestSeen) {
+        else if (presentTimeStamp == mLatestSeen) {
             return true;
         }
         else {
-            mElapsedTimes.add(timeStamp);
-            mLatestSeen = timeStamp;
+            mElapsedTimes.add(new GameQualificationMetric(presentTimeStamp, readyTimeStamp));
+            mLatestSeen = presentTimeStamp;
             return false;
         }
     }
@@ -194,50 +194,52 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private void onStart(DeviceMetricData runData) {}
 
     private void processTimestampsSlice(int runIndex, long startTimestamp, long endTimestamp, BufferedWriter outputFile, DeviceMetricData runData) throws IOException {
-        double minFPS = Double.MAX_VALUE;
-        double maxFPS = 0.0;
-        long minFrameTime = Long.MAX_VALUE;
-        long maxFrameTime = 0;
-        long totalTimeNs = 0;
+        MetricSummary presentTimeSummary = new MetricSummary();
+        MetricSummary readyTimeSummary = new MetricSummary();
 
         outputFile.write("Started run " + runIndex + " at: " + startTimestamp + " ns \n");
 
-        outputFile.write("Frame Time\t\tFrames Per Second\n");
+        outputFile.write("Present Time\tFrame Ready Time\n");
 
-        long prevTime = 0L;
+        long prevPresentTime = 0, prevReadyTime = 0;
         int numOfTimestamps = 0;
 
         List<Long> frameTimes = new ArrayList<>();
 
-        for(long time : mElapsedTimes)
+        for(GameQualificationMetric metric : mElapsedTimes)
         {
-            if (time < startTimestamp) {
+            long presentTime = metric.getActualPresentTime();
+            long readyTime = metric.getFrameReadyTime();
+
+            if (presentTime < startTimestamp) {
                 continue;
             }
-            if (time > endTimestamp) {
+            if (presentTime > endTimestamp) {
                 break;
             }
 
-            if (prevTime == 0) {
-                prevTime = time;
+            if (prevPresentTime == 0) {
+                prevPresentTime = presentTime;
+                prevReadyTime = readyTime;
                 continue;
             }
 
-            long timeDiff = time - prevTime;
-            prevTime = time;
+            long presentTimeDiff = presentTime - prevPresentTime;
+            prevPresentTime = presentTime;
 
-            double currentFPS = 1.0e9/timeDiff;
-            minFPS = (currentFPS < minFPS ? currentFPS : minFPS);
-            maxFPS = (currentFPS > maxFPS ? currentFPS : maxFPS);
+            presentTimeSummary.processTimestamp(presentTimeDiff);
 
-            minFrameTime = (timeDiff < minFrameTime ? timeDiff : minFrameTime);
-            maxFrameTime = (timeDiff > maxFrameTime ? timeDiff : maxFrameTime);
 
-            totalTimeNs += timeDiff;
+
+            long readyTimeDiff = readyTime - prevReadyTime;
+            prevReadyTime = readyTime;
+
+            readyTimeSummary.processTimestamp(readyTimeDiff);
+
             numOfTimestamps++;
 
-            outputFile.write(timeDiff + " ns\t\t" + currentFPS + " fps\n");
-            frameTimes.add(timeDiff);
+            outputFile.write(presentTimeDiff + " ns\t\t" + readyTimeDiff + " ns\n");
+            frameTimes.add(presentTimeDiff);
         }
 
         // There's a fair amount of slop in the system wrt device timing vs host orchestration,
@@ -249,22 +251,32 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
         outputFile.write("\nSTATS\n");
 
-        double avgFPS = numOfTimestamps * 1.0e9 / totalTimeNs;
-        long avgFrameTime = totalTimeNs / numOfTimestamps;
+        presentTimeSummary.processAverages(numOfTimestamps);
+        outputFile.write("Present Summary Statistics\n");
+        outputFile.write(presentTimeSummary + "\n\n");
 
-        outputFile.write("max Frame Time: " + maxFrameTime + " ns\tmin FPS = " + minFPS + " fps\n");
-        outputFile.write("min Frame Time: " + minFrameTime + " ns\tmax FPS = " + maxFPS + " fps\n");
-        outputFile.write("avg Frame Time: " + avgFrameTime + " ns\tavg FPS = " + avgFPS + " fps\n");
+        readyTimeSummary.processAverages(numOfTimestamps);
+        outputFile.write("Frame Ready Summary Statistics\n");
+        outputFile.write(readyTimeSummary + "\n\n");
 
-        runData.addMetric("run_" + runIndex + ".min_fps", getFpsMetric(minFPS));
-        runData.addMetric("run_" + runIndex + ".max_fps", getFpsMetric(maxFPS));
-        runData.addMetric("run_" + runIndex + ".fps", getFpsMetric(avgFPS));
+        runData.addMetric("run_" + runIndex + ".present_min_fps", getFpsMetric(presentTimeSummary.minFPS));
+        runData.addMetric("run_" + runIndex + ".present_max_fps", getFpsMetric(presentTimeSummary.maxFPS));
+        runData.addMetric("run_" + runIndex + ".present_fps", getFpsMetric(presentTimeSummary.avgFPS));
 
-        runData.addMetric("run_" + runIndex + ".min_frametime", getFrameTimeMetric(minFrameTime));
-        runData.addMetric("run_" + runIndex + ".max_frametime", getFrameTimeMetric(maxFrameTime));
-        runData.addMetric("run_" + runIndex + ".frametime", getFrameTimeMetric(avgFrameTime));
+        runData.addMetric("run_" + runIndex + ".present_min_frametime", getFrameTimeMetric(presentTimeSummary.minFrameTime));
+        runData.addMetric("run_" + runIndex + ".present_max_frametime", getFrameTimeMetric(presentTimeSummary.maxFrameTime));
+        runData.addMetric("run_" + runIndex + ".present_frametime", getFrameTimeMetric(presentTimeSummary.avgFrameTime));
 
-        outputFile.write("\n");
+        runData.addMetric("run_" + runIndex + ".ready_min_fps", getFpsMetric(readyTimeSummary.minFPS));
+        runData.addMetric("run_" + runIndex + ".ready_max_fps", getFpsMetric(readyTimeSummary.maxFPS));
+        runData.addMetric("run_" + runIndex + ".ready_fps", getFpsMetric(readyTimeSummary.avgFPS));
+
+        runData.addMetric("run_" + runIndex + ".ready_min_frametime", getFrameTimeMetric(readyTimeSummary.minFrameTime));
+        runData.addMetric("run_" + runIndex + ".ready_max_frametime", getFrameTimeMetric(readyTimeSummary.maxFrameTime));
+        runData.addMetric("run_" + runIndex + ".ready_frametime", getFrameTimeMetric(readyTimeSummary.avgFrameTime));
+
+
+
         printHistogram(frameTimes, runIndex);
     }
 
@@ -297,7 +309,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                     startTime = endTime;
                 }
 
-                processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1), outputFile, runData);
+                processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1).getActualPresentTime(), outputFile, runData);
 
                 outputFile.flush();
                 try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
@@ -335,11 +347,44 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
     }
 
+
     private Metric.Builder getFrameTimeMetric(long value) {
-    	return Metric.newBuilder()
-    		.setUnit("ns")
-    		.setDirection(Directionality.DOWN_BETTER)
-    		.setType(DataType.PROCESSED)
-    		.setMeasurements(Measurements.newBuilder().setSingleInt(value));
+        return Metric.newBuilder()
+            .setUnit("ns")
+            .setDirection(Directionality.DOWN_BETTER)
+            .setType(DataType.PROCESSED)
+            .setMeasurements(Measurements.newBuilder().setSingleInt(value));
+    }
+
+    private class MetricSummary {
+        public long totalTimeNs = 0;
+        public long minFrameTime = Long.MAX_VALUE;
+        public long maxFrameTime = 0;
+        public long avgFrameTime = 0;
+        public double minFPS = Double.MAX_VALUE;
+        public double maxFPS = 0.0;
+        public double avgFPS = 0.0;
+
+        public String toString() {
+            return ("max Frame Time: " + maxFrameTime + " ns\t\tmin FPS = " + minFPS + " fps\n" +
+                    "min Frame Time: " + minFrameTime + " ns\t\tmax FPS = " + maxFPS + " fps\n" +
+                    "avg Frame Time: " + avgFrameTime + " ns\t\tavg FPS = " + avgFPS + " fps");
+        }
+
+        private void processTimestamp(long timeDiff) {
+            double currentFPS = 1.0e9 / timeDiff;
+            minFPS = (currentFPS < minFPS) ? currentFPS : minFPS;
+            maxFPS = (currentFPS > maxFPS) ? currentFPS : maxFPS;
+
+            minFrameTime = (timeDiff < minFrameTime) ? timeDiff : minFrameTime;
+            maxFrameTime = (timeDiff > maxFrameTime) ? timeDiff : maxFrameTime;
+
+            totalTimeNs += timeDiff;
+        }
+
+        private void processAverages(int numOfTimestamps) {
+            avgFPS = numOfTimestamps * 1.0e9 / totalTimeNs;
+            avgFrameTime = totalTimeNs / numOfTimestamps;
+        }
     }
 }
