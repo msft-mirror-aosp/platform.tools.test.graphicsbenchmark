@@ -23,17 +23,20 @@ import android.util.Log;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import java.util.Random;
+
 public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     private static final String TAG = "MyGLRenderer";
-    private Sphere mSphere;
+    private Sphere[] mSphere;
+    private int numSpheres = 250;
     // mMVPMatrix is an abbreviation for "Model View Projection Matrix"
     private final float[] mMVPMatrix = new float[16];
     private final float[] mProjectionMatrix = new float[16];
     private final float[] mViewMatrix = new float[16];
 
-    private float[] mPosition = new float[3];
-    private float[] mVelocity = new float[]{0.02f, 0.02f, 0.0f};
+    private float[][] mPosition;
+    private float[][] mVelocity;
     private float mHeight;
     private float mWidth;
 
@@ -41,7 +44,20 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
         // Set the background frame color
         GLES20.glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-        mSphere = new Sphere(0.05f, 36);
+
+        Random rand = new Random(5);
+
+        mSphere = new Sphere[numSpheres];
+        mVelocity = new float[numSpheres][3];
+        mPosition = new float[numSpheres][3];
+
+        for (int i = 0; i < mSphere.length; ++i) {
+            mSphere[i] = new Sphere(0.005f, 75);
+
+            mVelocity[i][0] = (rand.nextFloat() * 2 - 1) / 8.0f;
+            mVelocity[i][1] = (rand.nextFloat() * 2 - 1) / 8.0f;
+            mVelocity[i][2] = 0.0f;
+        }
     }
 
     public void onDrawFrame(GL10 unused) {
@@ -55,22 +71,24 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // Calculate the projection and view transformation
         Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
 
-        // Update position;
-        mPosition[0] += mVelocity[0];
-        mPosition[1] += mVelocity[1];
-        mPosition[2] += mVelocity[2];
-        if (mPosition[0] - mSphere.getRadius() < 0.0f
-                || mPosition[0] + mSphere.getRadius() > mWidth) {
-            mVelocity[0] = -mVelocity[0];
-        }
-        if (mPosition[1] - mSphere.getRadius() < 0.0f
-                || mPosition[1] + mSphere.getRadius() > mHeight) {
-            mVelocity[1] = -mVelocity[1];
-        }
+        for (int i = 0; i < mSphere.length; i++) {
+            // Update position;
+            mPosition[i][0] += mVelocity[i][0];
+            mPosition[i][1] += mVelocity[i][1];
+            mPosition[i][2] += mVelocity[i][2];
+            if (mPosition[i][0] - mSphere[i].getRadius() < 0.0f
+                    || mPosition[i][0] + mSphere[i].getRadius() > mWidth) {
+                mVelocity[i][0] = -mVelocity[i][0];
+            }
+            if (mPosition[i][1] - mSphere[i].getRadius() < 0.0f
+                    || mPosition[i][1] + mSphere[i].getRadius() > mHeight) {
+                mVelocity[i][1] = -mVelocity[i][1];
+            }
 
-        Matrix.translateM(scratch, 0, mMVPMatrix, 0, mPosition[0], mPosition[1], mPosition[2]);
+            Matrix.translateM(scratch, 0, mMVPMatrix, 0, mPosition[i][0], mPosition[i][1], mPosition[i][2]);
 
-        mSphere.draw(scratch);
+            mSphere[i].draw(scratch);
+        }
     }
 
     public void onSurfaceChanged(GL10 unused, int width, int height) {
@@ -79,8 +97,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         float ratio = (float) width / height;
         mHeight = 1;
         mWidth = ratio;
-        mPosition[0] = mWidth / 2.0f;
-        mPosition[1] = mHeight / 2.0f;
+        for (int i = 0; i < mSphere.length; i++) {
+            mPosition[i][0] = mWidth / 2.0f;
+            mPosition[i][1] = mHeight / 2.0f;
+        }
 
         // This projection matrix is applied to object coordinates in the onDrawFrame() method.
         // Using orthographic projection to make it easier to determine edge of screen.
