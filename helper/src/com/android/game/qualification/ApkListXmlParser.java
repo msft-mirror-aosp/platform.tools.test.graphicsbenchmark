@@ -39,6 +39,26 @@ import javax.xml.parsers.ParserConfigurationException;
  */
 public class ApkListXmlParser {
 
+    public enum Field {
+        NAME("name"),
+        FILE_NAME("fileName"),
+        PACKAGE_NAME("packageName"),
+        LAYER_NAME("layerName"),
+        SCRIPT("script"),
+        ARGS("args"),
+        RUN_TIME("runTime");
+
+        private String mTag;
+
+        Field(String tag) {
+            mTag = tag;
+        }
+
+        public String getTag() {
+            return mTag;
+        }
+    }
+
     public ApkListXmlParser() {
     }
 
@@ -70,7 +90,7 @@ public class ApkListXmlParser {
 
     private ApkInfo createApkInfo(Element element) {
         List<ApkInfo.Argument> args = new ArrayList<>();
-        NodeList argsNodeList = element.getElementsByTagName("args");
+        NodeList argsNodeList = element.getElementsByTagName(Field.ARGS.getTag());
         if (argsNodeList.getLength() > 0) {
             NodeList children = argsNodeList.item(0).getChildNodes();
             for (int j = 0; j < children.getLength(); j++) {
@@ -91,17 +111,18 @@ public class ApkListXmlParser {
         }
 
         return new ApkInfo(
-                getElement(element, "name", null),
-                getElement(element, "fileName", null),
-                getElement(element, "packageName", null),
-                getElement(element, "layerName", null),
+                getElement(element, Field.NAME, null),
+                getElement(element, Field.FILE_NAME, null),
+                getElement(element, Field.PACKAGE_NAME, null),
+                getElement(element, Field.LAYER_NAME, null),
+                getElement(element, Field.SCRIPT, null),
                 args,
-                Integer.parseInt(getElement(element, "runTime", "10000"))
+                Integer.parseInt(getElement(element, Field.RUN_TIME, "10000"))
                 );
     }
 
-    private String getElement(Element element, String tag, String defaultValue) {
-        NodeList elements = element.getElementsByTagName(tag);
+    private String getElement(Element element, Field field, String defaultValue) {
+        NodeList elements = element.getElementsByTagName(field.getTag());
         if (elements.getLength() > 0) {
             return elements.item(0).getTextContent();
         } else {
