@@ -24,8 +24,13 @@ import com.android.tradefed.device.metric.DeviceMetricData;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.log.LogUtil.CLog;
+import com.android.tradefed.metrics.proto.MetricMeasurement.DataType;
+import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
+import com.android.tradefed.metrics.proto.MetricMeasurement.Directionality;
+import com.android.tradefed.metrics.proto.MetricMeasurement.Measurements;
 import com.android.tradefed.config.Option;
 
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.ArrayList;
@@ -102,7 +107,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     @Override
-    public final void onTestRunEnd(DeviceMetricData runData) {
+    public final void onTestRunEnd(DeviceMetricData runData, Map<String, Metric> currentRunMetrics) {
         if (mTimer != null) {
             mTimer.cancel();
             mTimer.purge();
@@ -234,14 +239,19 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         outputFile.write("max FPS = " + maxFPS + "\n");
         outputFile.write("avg FPS = " + avgFPS + "\n");
 
-        runData.addStringMetric("run_" + runIndex + ".min_fps", Double.toString(minFPS));
-        runData.addStringMetric("run_" + runIndex + ".max_fps", Double.toString(maxFPS));
-        runData.addStringMetric("run_" + runIndex + ".fps", Double.toString(avgFPS));
+        runData.addMetric("run_" + runIndex + ".min_fps", getFpsMetric(minFPS));
+        runData.addMetric("run_" + runIndex + ".max_fps", getFpsMetric(maxFPS));
+        runData.addMetric("run_" + runIndex + ".fps", getFpsMetric(avgFPS));
 
         outputFile.write("\n");
     }
 
     private void onEnd(DeviceMetricData runData) {
+
+        // TODO: correlate with mDeviceResultData to exclude loading period, etc.
+        if (mDeviceResultData != null) {
+            CLog.e("Intent timestamp: " + mDeviceResultData.getEvents(0).getTimestamp());
+        }
 
         // TODO: Find a way to send the results to the same directory as the inv. log files
         try (BufferedWriter outputFile = new BufferedWriter(new FileWriter("/tmp/0/GameQualification/out.txt", !mFirstRun))) {
@@ -274,5 +284,13 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         }
 
         mFirstRun = false;
+    }
+
+    private Metric.Builder getFpsMetric(double value) {
+        return Metric.newBuilder()
+            .setUnit("fps")
+            .setDirection(Directionality.UP_BETTER)
+            .setType(DataType.PROCESSED)
+            .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
     }
 }
