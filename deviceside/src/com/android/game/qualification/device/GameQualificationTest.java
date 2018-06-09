@@ -22,6 +22,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.support.test.InstrumentationRegistry;
 import android.util.Log;
 
@@ -127,10 +128,22 @@ public class GameQualificationTest {
 
         InstrumentationRegistry.getContext().startActivity(intent);
         mHandler.postDelayed(() -> {
-            if (!mGotIntent) {
-                mHandler.getLooper().quit();
+            if (mApk.getExpectIntents()) {
+                if (!mGotIntent) {
+                    // app integrates via intents, but we've not received one yet.
+                    // we assume that the app is stuck or dead and terminate the test.
+                    mHandler.getLooper().quit();
+                }
+            } else {
+                // the app doesn't integrate properly. We assume that loading has completed
+                // by now, so produce a synthetic event here for the current timestamp, and
+                // then allow an additional mApk.getRunTime() milliseconds for the actual
+                // workload to run.
+                mReport.startLoop(SystemClock.uptimeMillis());
+                mHandler.postDelayed(() -> { mHandler.getLooper().quit(); },
+                    mApk.getRunTime());
             }
-        }, mApk.getRunTime());
+        }, mApk.getLoadTime());
         Looper.loop();
         mReport.end();
     }
