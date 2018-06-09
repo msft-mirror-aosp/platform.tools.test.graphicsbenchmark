@@ -29,6 +29,7 @@ import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.metric.IMetricCollector;
 import com.android.tradefed.device.metric.IMetricCollectorReceiver;
 import com.android.tradefed.invoker.IInvocationContext;
+import com.android.tradefed.log.LogUtil.CLog;
 import com.android.tradefed.metrics.proto.MetricMeasurement;
 import com.android.tradefed.result.CollectingTestListener;
 import com.android.tradefed.result.ITestInvocationListener;
@@ -43,6 +44,7 @@ import com.google.common.io.Files;
 
 import org.xml.sax.SAXException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -50,6 +52,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -156,17 +159,49 @@ public class GameQualificationHostsideController implements
 
         initApkList();
         getDevice().pushFile(mApkInfoFile, ApkInfo.APK_LIST_LOCATION);
+        String serial = getDevice().getSerialNumber();
 
         for (ApkInfo apk : mApks) {
+            boolean setupFailed = false;
             File apkFile = findApk(apk.getFileName());
-            getDevice().installPackage(apkFile, true);
+            String setupOutputString = "";
+            if (apk.getScript() != null) {
+                String cmd = apk.getScript();
+                CLog.i(
+                        "Executing command: " + cmd + "\n"
+                                + "Working directory: " + mApkInfoFile.getParent());
+                try {
+                    ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
+                    pb.environment().put("ANDROID_SERIAL", serial);
+                    pb.directory(mApkInfoFile.getParentFile());
+                    pb.redirectErrorStream(true);
+
+                    Process p = pb.start();
+                    boolean finished = p.waitFor(5, TimeUnit.MINUTES);
+                    if (!finished || p.exitValue() != 0) {
+                        setupFailed = true;
+                        ByteArrayOutputStream os = new ByteArrayOutputStream();
+                        ByteStreams.copy(p.getInputStream(), os);
+                        setupOutputString = os.toString(StandardCharsets.UTF_8.name());
+                        if (!finished) {
+                            setupOutputString += "\n***TIMEOUT waiting for script to complete.***";
+                            p.destroy();
+                        }
+                    }
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            if (apkFile != null && !setupFailed) {
+                CLog.i("Installing %s on %s.", apkFile.getName(), getDevice().getSerialNumber());
+                getDevice().installPackage(apkFile, true);
+            }
             mAGQMetricCollector.setApkInfo(apk);
 
             // Might seem counter-intuitive, but the easiest way to get per-package results is
             // to put this call and the corresponding testRunEnd inside the for loop for now
             listener.testRunStarted("gamequalification", mApks.size());
 
-            // TODO: Migrate to TF TestDescription when available
             TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
 
             HashMap<String, MetricMeasurement.Metric> testMetrics = new HashMap<>();
@@ -182,9 +217,13 @@ public class GameQualificationHostsideController implements
                 listener.testFailed(
                         identifier,
                         String.format(
-                                "Missing APK.  Unable to find %s in %s.",
+                                "Missing APK.  Unable to find %s in %s.\n",
                                 apk.getFileName(),
                                 getApkDir()));
+            } else if (setupFailed) {
+                listener.testFailed(
+                        identifier,
+                        "Execution of setup script returned non-zero value:\n" + setupOutputString);
             } else {
                 runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
                 ResultDataProto.Result resultData = retrieveResultData();

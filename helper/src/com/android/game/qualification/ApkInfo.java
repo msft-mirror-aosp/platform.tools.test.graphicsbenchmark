@@ -16,13 +16,13 @@
 
 package com.android.game.qualification;
 
-import java.util.Collection;
+import com.android.game.qualification.ApkListXmlParser.Field;
+
 import java.util.List;
 
 public class ApkInfo {
 public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-info.xml";
 
-    //TODO: support non-String args.
     public static class Argument {
         public enum Type {
             STRING,
@@ -61,39 +61,75 @@ public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-in
     private String mFileName;
     private String mPackageName;
     private String mLayerName;
+    private String mScript;
     private List<Argument> mArgs;
     private int mRunTime;
 
-    public ApkInfo(String name, String fileName, String packageName, String layerName, List<Argument> args, int runTime) {
+    public ApkInfo(
+            String name,
+            String fileName,
+            String packageName,
+            String layerName,
+            String script, List<Argument> args,
+            int runTime) {
+        checkNotNull(name, Field.NAME.getTag());
+        checkNotNull(fileName, Field.FILE_NAME.getTag());
+        checkNotNull(packageName, Field.PACKAGE_NAME.getTag());
+        checkNotNull(layerName, Field.LAYER_NAME.getTag());
+
         this.mName = name;
         this.mFileName = fileName;
         this.mPackageName = packageName;
         this.mLayerName = layerName;
+        this.mScript = script;
         this.mArgs = args;
         this.mRunTime = runTime;
     }
 
+    /** Name of the test */
     public String getName() {
         return mName;
     }
 
+    /** Filename of the APK */
     public String getFileName() {
         return mFileName;
     }
 
+    /** Package name of the app */
     public String getPackageName() {
         return mPackageName;
     }
 
+    /** Name of the layer to collect metrics from */
     public String getLayerName() {
         return mLayerName;
     }
 
+    /** (Optional) Shell command to be executed before the installation of the APK */
+    public String getScript() {
+        return mScript;
+    }
+
+    /** (Optional) Arguments supplied to the Intent used to start the app */
     public List<Argument> getArgs() {
         return mArgs;
     }
 
+    /**
+     * (Optional) Duration the app will be run for before it is terminated
+     *
+     * If the app produce a START_LOOP intent, this will be the duration after the first START_LOOP
+     * is received.
+     */
     public int getRunTime() {
         return mRunTime;
+    }
+
+    private void checkNotNull(Object value, String fieldName) {
+        if (value == null) {
+            throw new IllegalArgumentException(
+                    "Failed to parse apk info.  Required field '" + fieldName + "' is missing.");
+        }
     }
 }
