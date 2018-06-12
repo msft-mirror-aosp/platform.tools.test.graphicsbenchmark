@@ -12,4 +12,6 @@
     <metrics_collector class="com.android.game.qualification.metric.GameQualificationMetricCollector" />
 
     <test class="com.android.game.qualification.testtype.GameQualificationHostsideController" />
+
+    <result_reporter class="com.android.game.qualification.reporter.GameQualificationResultReporter"/>
 </configuration>
