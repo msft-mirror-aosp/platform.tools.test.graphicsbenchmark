@@ -20,11 +20,6 @@ class GameQualificationMetric {
     private long mActualPresentTime;
     private long mFrameReadyTime;
 
-    public GameQualificationMetric() {
-        this.mActualPresentTime = 0;
-        this.mFrameReadyTime = 0;
-    }
-
     public GameQualificationMetric(long actualPresentTime, long frameReadyTime) {
         this.mActualPresentTime = actualPresentTime;
         this.mFrameReadyTime = frameReadyTime;
@@ -34,15 +29,7 @@ class GameQualificationMetric {
         return mActualPresentTime;
     }
 
-    public void setActualPresentTime(long actualPresentTime) {
-        this.mActualPresentTime = actualPresentTime;
-    }
-
     public long getFrameReadyTime() {
         return mFrameReadyTime;
-    }
-
-    public void setFrameReadyTime(long frameReadyTime) {
-        this.mFrameReadyTime = frameReadyTime;
     }
 }

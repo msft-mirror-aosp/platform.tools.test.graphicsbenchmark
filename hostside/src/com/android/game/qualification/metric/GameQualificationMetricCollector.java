@@ -252,14 +252,14 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             long presentTimeDiff = presentTime - prevPresentTime;
             prevPresentTime = presentTime;
 
-            presentTimeSummary.processTimestamp(presentTimeDiff);
+            presentTimeSummary.addFrameTime(presentTimeDiff);
 
 
 
             long readyTimeDiff = readyTime - prevReadyTime;
             prevReadyTime = readyTime;
 
-            readyTimeSummary.processTimestamp(readyTimeDiff);
+            readyTimeSummary.addFrameTime(readyTimeDiff);
 
             numOfTimestamps++;
 
@@ -276,29 +276,71 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
         outputFile.write("\nSTATS\n");
 
-        presentTimeSummary.processAverages(numOfTimestamps);
+        presentTimeSummary.processFrameTimes();
         outputFile.write("Present Summary Statistics\n");
         outputFile.write(presentTimeSummary + "\n\n");
 
-        readyTimeSummary.processAverages(numOfTimestamps);
+        readyTimeSummary.processFrameTimes();
         outputFile.write("Frame Ready Summary Statistics\n");
         outputFile.write(readyTimeSummary + "\n\n");
 
-        runData.addMetric("run_" + runIndex + ".present_min_fps", getFpsMetric(presentTimeSummary.minFPS));
-        runData.addMetric("run_" + runIndex + ".present_max_fps", getFpsMetric(presentTimeSummary.maxFPS));
-        runData.addMetric("run_" + runIndex + ".present_fps", getFpsMetric(presentTimeSummary.avgFPS));
+        runData.addMetric(
+                "run_" + runIndex + ".present_min_fps",
+                getFpsMetric(presentTimeSummary.getMinFPS()));
+        runData.addMetric(
+                "run_" + runIndex + ".present_max_fps",
+                getFpsMetric(presentTimeSummary.getMaxFPS()));
+        runData.addMetric(
+                "run_" + runIndex + ".present_fps",
+                getFpsMetric(presentTimeSummary.getAvgFPS()));
 
-        runData.addMetric("run_" + runIndex + ".present_min_frametime", getFrameTimeMetric(presentTimeSummary.minFrameTime));
-        runData.addMetric("run_" + runIndex + ".present_max_frametime", getFrameTimeMetric(presentTimeSummary.maxFrameTime));
-        runData.addMetric("run_" + runIndex + ".present_frametime", getFrameTimeMetric(presentTimeSummary.avgFrameTime));
+        runData.addMetric(
+                "run_" + runIndex + ".present_min_frametime",
+                getFrameTimeMetric(presentTimeSummary.getMinFrameTime()));
+        runData.addMetric(
+                "run_" + runIndex + ".present_max_frametime",
+                getFrameTimeMetric(presentTimeSummary.getMaxFrameTime()));
+        runData.addMetric(
+                "run_" + runIndex + ".present_frametime",
+                getFrameTimeMetric(presentTimeSummary.getAvgFrameTime()));
+        runData.addMetric(
+                "run_" + runIndex + ".present_90th_percentile",
+                getFrameTimeMetric(presentTimeSummary.get90thPercentile()));
+        runData.addMetric(
+                "run_" + runIndex + ".present_95th_percentile",
+                getFrameTimeMetric(presentTimeSummary.get95thPercentile()));
+        runData.addMetric(
+                "run_" + runIndex + ".present_99th_percentile",
+                getFrameTimeMetric(presentTimeSummary.get99thPercentile()));
 
-        runData.addMetric("run_" + runIndex + ".ready_min_fps", getFpsMetric(readyTimeSummary.minFPS));
-        runData.addMetric("run_" + runIndex + ".ready_max_fps", getFpsMetric(readyTimeSummary.maxFPS));
-        runData.addMetric("run_" + runIndex + ".ready_fps", getFpsMetric(readyTimeSummary.avgFPS));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_min_fps",
+                getFpsMetric(readyTimeSummary.getMinFPS()));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_max_fps",
+                getFpsMetric(readyTimeSummary.getMaxFPS()));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_fps",
+                getFpsMetric(readyTimeSummary.getAvgFPS()));
 
-        runData.addMetric("run_" + runIndex + ".ready_min_frametime", getFrameTimeMetric(readyTimeSummary.minFrameTime));
-        runData.addMetric("run_" + runIndex + ".ready_max_frametime", getFrameTimeMetric(readyTimeSummary.maxFrameTime));
-        runData.addMetric("run_" + runIndex + ".ready_frametime", getFrameTimeMetric(readyTimeSummary.avgFrameTime));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_min_frametime",
+                getFrameTimeMetric(readyTimeSummary.getMinFrameTime()));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_max_frametime",
+                getFrameTimeMetric(readyTimeSummary.getMaxFrameTime()));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_frametime",
+                getFrameTimeMetric(readyTimeSummary.getAvgFrameTime()));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_90th_percentile",
+                getFrameTimeMetric(readyTimeSummary.get90thPercentile()));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_95th_percentile",
+                getFrameTimeMetric(readyTimeSummary.get95thPercentile()));
+        runData.addMetric(
+                "run_" + runIndex + ".ready_99th_percentile",
+                getFrameTimeMetric(readyTimeSummary.get99thPercentile()));
 
 
 
@@ -386,35 +428,12 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             .setMeasurements(Measurements.newBuilder().setSingleInt(value));
     }
 
-    private class MetricSummary {
-        public long totalTimeNs = 0;
-        public long minFrameTime = Long.MAX_VALUE;
-        public long maxFrameTime = 0;
-        public long avgFrameTime = 0;
-        public double minFPS = Double.MAX_VALUE;
-        public double maxFPS = 0.0;
-        public double avgFPS = 0.0;
-
-        public String toString() {
-            return ("max Frame Time: " + maxFrameTime + " ns\t\tmin FPS = " + minFPS + " fps\n" +
-                    "min Frame Time: " + minFrameTime + " ns\t\tmax FPS = " + maxFPS + " fps\n" +
-                    "avg Frame Time: " + avgFrameTime + " ns\t\tavg FPS = " + avgFPS + " fps");
-        }
-
-        private void processTimestamp(long timeDiff) {
-            double currentFPS = 1.0e9 / timeDiff;
-            minFPS = (currentFPS < minFPS) ? currentFPS : minFPS;
-            maxFPS = (currentFPS > maxFPS) ? currentFPS : maxFPS;
-
-            minFrameTime = (timeDiff < minFrameTime) ? timeDiff : minFrameTime;
-            maxFrameTime = (timeDiff > maxFrameTime) ? timeDiff : maxFrameTime;
-
-            totalTimeNs += timeDiff;
-        }
-
-        private void processAverages(int numOfTimestamps) {
-            avgFPS = numOfTimestamps * 1.0e9 / totalTimeNs;
-            avgFrameTime = totalTimeNs / numOfTimestamps;
-        }
+    private Metric.Builder getFrameTimeMetric(double value) {
+        return Metric.newBuilder()
+                .setUnit("ns")
+                .setDirection(Directionality.DOWN_BETTER)
+                .setType(DataType.PROCESSED)
+                .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
     }
+
 }
