@@ -54,8 +54,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         for (int i = 0; i < mSphere.length; ++i) {
             mSphere[i] = new Sphere(0.005f, 75);
 
-            mVelocity[i][0] = (rand.nextFloat() * 2 - 1) / 8.0f;
-            mVelocity[i][1] = (rand.nextFloat() * 2 - 1) / 8.0f;
+            mVelocity[i][0] = (rand.nextFloat() * 2 - 1) * 0.02f;
+            mVelocity[i][1] = (rand.nextFloat() * 2 - 1) * 0.02f;
             mVelocity[i][2] = 0.0f;
         }
     }
