@@ -38,6 +38,7 @@ public class ApkListXmlParserTest {
             assertEquals("foo.apk", apk.getFileName());
             assertEquals("com.foo.test", apk.getPackageName());
             assertEquals(null, apk.getScript());
+            assertEquals(10000, apk.getLoadTime());
             assertEquals(10000, apk.getRunTime());
         }
     }
@@ -54,6 +55,7 @@ public class ApkListXmlParserTest {
                         + "        <packageName>com.foo.test</packageName>\n"
                         + "        <layerName>com.foo.test</layerName>\n"
                         + "        <script>script.sh</script>\n"
+                        + "        <startTime>21</startTime>\n"
                         + "        <runTime>42</runTime>\n"
                         + "    </apk>\n"
                         + "</apk-info>\n").getBytes())) {
@@ -64,6 +66,7 @@ public class ApkListXmlParserTest {
             assertEquals("foo.apk", apk.getFileName());
             assertEquals("com.foo.test", apk.getPackageName());
             assertEquals("script.sh", apk.getScript());
+            assertEquals(21, apk.getLoadTime());
             assertEquals(42, apk.getRunTime());
         }
     }

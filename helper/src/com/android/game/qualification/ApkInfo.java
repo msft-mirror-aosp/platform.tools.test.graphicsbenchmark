@@ -63,7 +63,9 @@ public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-in
     private String mLayerName;
     private String mScript;
     private List<Argument> mArgs;
+    private int mLoadTime;
     private int mRunTime;
+    private boolean mExpectIntents;
 
     public ApkInfo(
             String name,
@@ -71,7 +73,9 @@ public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-in
             String packageName,
             String layerName,
             String script, List<Argument> args,
-            int runTime) {
+            int loadTime,
+            int runTime,
+            boolean expectIntents) {
         checkNotNull(name, Field.NAME.getTag());
         checkNotNull(fileName, Field.FILE_NAME.getTag());
         checkNotNull(packageName, Field.PACKAGE_NAME.getTag());
@@ -83,7 +87,9 @@ public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-in
         this.mLayerName = layerName;
         this.mScript = script;
         this.mArgs = args;
+        this.mLoadTime = loadTime;
         this.mRunTime = runTime;
+        this.mExpectIntents = expectIntents;
     }
 
     /** Name of the test */
@@ -117,13 +123,31 @@ public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-in
     }
 
     /**
-     * (Optional) Duration the app will be run for before it is terminated
-     *
-     * If the app produce a START_LOOP intent, this will be the duration after the first START_LOOP
-     * is received.
+     * (Optional) Duration the app will be run for before it is terminated, prior to producing a
+     * START_LOOP intent.
+     */
+    public int getLoadTime() {
+        return mLoadTime;
+    }
+
+    /**
+     * (Optional) Duration the app will be run for after the first START_LOOP intent is received.
      */
     public int getRunTime() {
         return mRunTime;
+    }
+
+    /**
+     * Whether the app integrates properly with the harness via intents.
+     *
+     * If true, then we require that the app send its first START_LOOP intent within getLoadTime(),
+     * and run it for an additional getRunTime() milliseconds after the first intent is received.
+     *
+     * Otherwise, we will run the app for getLoadTime() + getRunTime(), and produce a synthetic
+     * "finished loading" marker after getLoadTime() milliseconds.
+     */
+    public boolean getExpectIntents() {
+        return mExpectIntents;
     }
 
     private void checkNotNull(Object value, String fieldName) {

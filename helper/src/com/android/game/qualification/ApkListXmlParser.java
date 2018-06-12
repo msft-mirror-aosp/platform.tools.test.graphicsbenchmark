@@ -46,7 +46,9 @@ public class ApkListXmlParser {
         LAYER_NAME("layerName"),
         SCRIPT("script"),
         ARGS("args"),
-        RUN_TIME("runTime");
+        LOAD_TIME("loadTime"),
+        RUN_TIME("runTime"),
+        EXPECT_INTENTS("expectIntents");
 
         private String mTag;
 
@@ -117,7 +119,9 @@ public class ApkListXmlParser {
                 getElement(element, Field.LAYER_NAME, null),
                 getElement(element, Field.SCRIPT, null),
                 args,
-                Integer.parseInt(getElement(element, Field.RUN_TIME, "10000"))
+                Integer.parseInt(getElement(element, Field.LOAD_TIME, "10000")),
+                Integer.parseInt(getElement(element, Field.RUN_TIME, "10000")),
+                Boolean.parseBoolean(getElement(element, Field.EXPECT_INTENTS, "false"))
                 );
     }
 
