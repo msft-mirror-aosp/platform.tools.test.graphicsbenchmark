@@ -54,7 +54,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private ArrayList<GameQualificationMetric> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mAppStarted;
-    private boolean mAppTerminated;
+    private volatile boolean mAppTerminated;
     private File mRawFile;
 
     @Option(
@@ -82,6 +82,10 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
     public void setDevice(ITestDevice device) {
         mDevice = device;
+    }
+
+    public boolean isAppTerminated() {
+        return mAppTerminated;
     }
 
     @Override
@@ -448,5 +452,4 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                 .setType(DataType.PROCESSED)
                 .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
     }
-
 }

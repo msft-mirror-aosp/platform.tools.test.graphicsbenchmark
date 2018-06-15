@@ -230,6 +230,10 @@ public class GameQualificationHostsideController implements
                 mAGQMetricCollector.setDeviceResultData(resultData);
             }
 
+            if (mAGQMetricCollector.isAppTerminated()) {
+                listener.testFailed(identifier, "App was terminated");
+            }
+
             listener.testEnded(identifier, testMetrics);
             listener.testRunEnded(0, runMetrics);
 
