@@ -53,7 +53,8 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private long mVSyncPeriod = 0;
     private ArrayList<GameQualificationMetric> mElapsedTimes;
     private ITestDevice mDevice;
-    private boolean mFirstLoop;
+    private boolean mAppStarted;
+    private volatile boolean mAppTerminated;
     private File mRawFile;
 
     @Option(
@@ -83,6 +84,10 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         mDevice = device;
     }
 
+    public boolean isAppTerminated() {
+        return mAppTerminated;
+    }
+
     @Override
     public final void onTestRunStart(DeviceMetricData runData) {
         CLog.v("Test run started on device %s.", mDevice);
@@ -95,7 +100,8 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
         mElapsedTimes = new ArrayList<>();
         mLatestSeen = 0;
-        mFirstLoop = true;
+        mAppStarted = false;
+        mAppTerminated = false;
 
         onStart(runData);
         mTimer = new Timer();
@@ -108,7 +114,11 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                         } catch (InterruptedException e) {
                             mTimer.cancel();
                             Thread.currentThread().interrupt();
-                            CLog.e("Interrupted exception thrown from task: %s", e);
+                            CLog.e("Interrupted Exception thrown from task: %s", e);
+                        } catch (Exception e) {
+                            mTimer.cancel();
+                            Thread.currentThread().interrupt();
+                            CLog.e("Test app '%s' terminated before data collection was completed.", mTestApk.getName());
                         }
                     }
                 };
@@ -139,7 +149,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
      */
     private void collect(DeviceMetricData runData) throws InterruptedException {
         try {
-
             if (mTestApk == null) {
                 CLog.e("No test apk info provided.");
                 return;
@@ -149,19 +158,23 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
             String[] raw = mDevice.executeShellCommand(cmd).split("\n");
 
-            if (mFirstLoop) {
-                if (raw.length == 1) {
-                    // We didn't get any frame timestamp info.  Mostly likely because the app has
-                    // not started yet.  Or the app layer name is wrong.
-                    // TODO: figure out how to report it if the app layer name is wrong.
-                    return;
+            if (raw.length == 1) {
+                if (mAppStarted) {
+                    mAppTerminated = true;
+                    throw new RuntimeException();
                 }
+                else
+                    return;
+            }
+
+            if (!mAppStarted) {
                 mVSyncPeriod = Long.parseLong(raw[0]);
-                mFirstLoop = false;
+                mAppStarted = true;
             }
 
             try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(mRawFile, true))) {
                 outputFile.write("Vsync: " + raw[0] + "\n");
+                outputFile.write("Latest Seen: " + mLatestSeen + "\n");
 
                 outputFile.write(String.format("%20s", "Desired Present Time") + "\t");
                 outputFile.write(String.format("%20s", "Actual Present Time") + "\t");
@@ -360,6 +373,10 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
             File tmpFile = File.createTempFile("GameQualification", ".txt");
             try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
+                if (mAppTerminated) {
+                    outputFile.write("NOTE: THE APPLICATION WAS INTERRUPTED AT SOME POINT DURING THE TEST. RESULTS MAY BE INCOMPLETE.\n\n\n\n");
+                }
+
                 outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
                 if (mDeviceResultData.getEventsCount() == 0) {
@@ -435,5 +452,4 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                 .setType(DataType.PROCESSED)
                 .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
     }
-
 }
