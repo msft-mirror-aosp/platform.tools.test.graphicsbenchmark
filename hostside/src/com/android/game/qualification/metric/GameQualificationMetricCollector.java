@@ -54,7 +54,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private ArrayList<GameQualificationMetric> mElapsedTimes;
     private ITestDevice mDevice;
     private boolean mAppStarted;
-    private volatile boolean mAppTerminated;
+    private boolean mAppTerminated;
     private File mRawFile;
 
     @Option(
@@ -73,7 +73,9 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private Timer mTimer;
 
     public void setApkInfo(ApkInfo apk) {
-        mTestApk = apk;
+        synchronized(this) {
+            mTestApk = apk;
+        }
     }
 
     public void setDeviceResultData(ResultDataProto.Result resultData) {
@@ -85,7 +87,9 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     public boolean isAppTerminated() {
-        return mAppTerminated;
+        synchronized(this) {
+            return mAppTerminated;
+        }
     }
 
     @Override
@@ -98,10 +102,12 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             throw new RuntimeException(e);
         }
 
-        mElapsedTimes = new ArrayList<>();
-        mLatestSeen = 0;
-        mAppStarted = false;
-        mAppTerminated = false;
+        synchronized(this) {
+            mElapsedTimes = new ArrayList<>();
+            mLatestSeen = 0;
+            mAppStarted = false;
+            mAppTerminated = false;
+        }
 
         onStart(runData);
         mTimer = new Timer();
@@ -148,66 +154,68 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
      * @throws InterruptedException
      */
     private void collect(DeviceMetricData runData) throws InterruptedException {
-        try {
-            if (mTestApk == null) {
-                CLog.e("No test apk info provided.");
-                return;
-            }
-            CLog.d("Collecting benchmark stats for layer: %s", mTestApk.getLayerName());
-
-            String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
-            String[] raw = mDevice.executeShellCommand(cmd).split("\n");
-
-            if (raw.length == 1) {
-                if (mAppStarted) {
-                    mAppTerminated = true;
-                    throw new RuntimeException();
-                }
-                else
+        synchronized(this) {
+            try {
+                if (mTestApk == null) {
+                    CLog.e("No test apk info provided.");
                     return;
-            }
+                }
+                CLog.d("Collecting benchmark stats for layer: %s", mTestApk.getLayerName());
 
-            if (!mAppStarted) {
-                mVSyncPeriod = Long.parseLong(raw[0]);
-                mAppStarted = true;
-            }
+                String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
+                String[] raw = mDevice.executeShellCommand(cmd).split("\n");
 
-            try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(mRawFile, true))) {
-                outputFile.write("Vsync: " + raw[0] + "\n");
-                outputFile.write("Latest Seen: " + mLatestSeen + "\n");
+                if (raw.length == 1) {
+                    if (mAppStarted) {
+                        mAppTerminated = true;
+                        throw new RuntimeException();
+                    }
+                    else
+                        return;
+                }
 
-                outputFile.write(String.format("%20s", "Desired Present Time") + "\t");
-                outputFile.write(String.format("%20s", "Actual Present Time") + "\t");
-                outputFile.write(String.format("%20s", "Frame Ready Time") + "\n");
+                if (!mAppStarted) {
+                    mVSyncPeriod = Long.parseLong(raw[0]);
+                    mAppStarted = true;
+                }
 
-                boolean overlap = false;
-                for (int i = 1; i < raw.length; i++) {
-                    String[] parts = raw[i].split("\t");
+                try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(mRawFile, true))) {
+                    outputFile.write("Vsync: " + raw[0] + "\n");
+                    outputFile.write("Latest Seen: " + mLatestSeen + "\n");
 
-                    if (parts.length == 3) {
-                        if (sample(Long.parseLong(parts[2]), Long.parseLong(parts[1]))) {
-                            overlap = true;
+                    outputFile.write(String.format("%20s", "Desired Present Time") + "\t");
+                    outputFile.write(String.format("%20s", "Actual Present Time") + "\t");
+                    outputFile.write(String.format("%20s", "Frame Ready Time") + "\n");
+
+                    boolean overlap = false;
+                    for (int i = 1; i < raw.length; i++) {
+                        String[] parts = raw[i].split("\t");
+
+                        if (parts.length == 3) {
+                            if (sample(Long.parseLong(parts[2]), Long.parseLong(parts[1]))) {
+                                overlap = true;
+                            }
                         }
+
+                        outputFile.write(String.format("%20d", Long.parseLong(parts[0])) + "\t");
+                        outputFile.write(String.format("%20d", Long.parseLong(parts[1])) + "\t");
+                        outputFile.write(String.format("%20d", Long.parseLong(parts[2])) + "\n");
                     }
 
-                    outputFile.write(String.format("%20d", Long.parseLong(parts[0])) + "\t");
-                    outputFile.write(String.format("%20d", Long.parseLong(parts[1])) + "\t");
-                    outputFile.write(String.format("%20d", Long.parseLong(parts[2])) + "\n");
+                    if (!overlap) {
+                        CLog.e("No overlap with previous poll, we missed some frames!"); // FIND SOMETHING BETTER
+                    }
+
+                    outputFile.write("\n\n");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
 
-                if (!overlap) {
-                    CLog.e("No overlap with previous poll, we missed some frames!"); // FIND SOMETHING BETTER
-                }
 
-                outputFile.write("\n\n");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+
+            } catch (DeviceNotAvailableException | NullPointerException e) {
+                CLog.e(e);
             }
-
-
-
-        } catch (DeviceNotAvailableException | NullPointerException e) {
-            CLog.e(e);
         }
     }
 
@@ -361,53 +369,55 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     private void onEnd(DeviceMetricData runData) {
-        if (mElapsedTimes.isEmpty()) {
-            return;
-        }
-        try {
-            try(InputStreamSource rawData = new FileInputStreamSource(mRawFile, true)) {
-                    testLog("RAW-" + mTestApk.getName(), LogDataType.TEXT, rawData);
+        synchronized(this) {
+            if (mElapsedTimes.isEmpty()) {
+                return;
             }
-
-             mRawFile.delete();
-
-            File tmpFile = File.createTempFile("GameQualification", ".txt");
-            try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
-                if (mAppTerminated) {
-                    outputFile.write("NOTE: THE APPLICATION WAS INTERRUPTED AT SOME POINT DURING THE TEST. RESULTS MAY BE INCOMPLETE.\n\n\n\n");
+            try {
+                try(InputStreamSource rawData = new FileInputStreamSource(mRawFile, true)) {
+                        testLog("RAW-" + mTestApk.getName(), LogDataType.TEXT, rawData);
                 }
 
-                outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
+                 mRawFile.delete();
 
-                if (mDeviceResultData.getEventsCount() == 0) {
-                    CLog.w("No start intent given; assuming single run with no loading period to exclude.");
-                }
-
-                long startTime = 0L;
-                int runIndex = 0;
-                for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
-                    if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
-                        continue;
+                File tmpFile = File.createTempFile("GameQualification", ".txt");
+                try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
+                    if (mAppTerminated) {
+                        outputFile.write("NOTE: THE APPLICATION WAS INTERRUPTED AT SOME POINT DURING THE TEST. RESULTS MAY BE INCOMPLETE.\n\n\n\n");
                     }
 
-                    long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
+                    outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
-                    if (startTime != 0) {
-                        processTimestampsSlice(runIndex++, startTime, endTime, outputFile, runData);
+                    if (mDeviceResultData.getEventsCount() == 0) {
+                        CLog.w("No start intent given; assuming single run with no loading period to exclude.");
                     }
-                    startTime = endTime;
-                }
 
-                processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1).getActualPresentTime(), outputFile, runData);
+                    long startTime = 0L;
+                    int runIndex = 0;
+                    for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
+                        if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
+                            continue;
+                        }
 
-                outputFile.flush();
-                try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
-                    testLog("GameQualification-" + mTestApk.getName(), LogDataType.TEXT, source);
+                        long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
+
+                        if (startTime != 0) {
+                            processTimestampsSlice(runIndex++, startTime, endTime, outputFile, runData);
+                        }
+                        startTime = endTime;
+                    }
+
+                    processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1).getActualPresentTime(), outputFile, runData);
+
+                    outputFile.flush();
+                    try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
+                        testLog("GameQualification-" + mTestApk.getName(), LogDataType.TEXT, source);
+                    }
                 }
+                tmpFile.delete();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-            tmpFile.delete();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
