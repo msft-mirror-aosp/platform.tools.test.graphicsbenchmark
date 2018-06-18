@@ -97,6 +97,11 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
     @Override
     public final void onTestStart(DeviceMetricData runData) {
+        if (mTestApk == null) {
+            // If APK info is not provided, then the test is not triggered from
+            // GameQualificationHostsideController.
+            return;
+        }
         CLog.v("Test run started on device %s.", mDevice);
 
         try {
@@ -141,6 +146,10 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
     @Override
     public final void onTestEnd(DeviceMetricData runData, Map<String, Metric> currentRunMetrics) {
+        if (mTestApk == null) {
+            return;
+        }
+
         if (mTimer != null) {
             mTimer.cancel();
             mTimer.purge();
@@ -159,10 +168,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private void collect(DeviceMetricData runData) throws InterruptedException {
         synchronized(this) {
             try {
-                if (mTestApk == null) {
-                    CLog.e("No test apk info provided.");
-                    return;
-                }
                 CLog.d("Collecting benchmark stats for layer: %s", mTestApk.getLayerName());
 
                 String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";

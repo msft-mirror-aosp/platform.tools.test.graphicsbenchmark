@@ -99,7 +99,7 @@ public class MetricSummaryTest {
         HashMap<String, MetricMeasurement.Metric> metrics = new HashMap<>();
         runData.addToMetrics(metrics);
 
-        MetricSummary result = MetricSummary.parseRunMetrics(metrics);
+        MetricSummary result = MetricSummary.parseRunMetrics(new InvocationContext(), metrics);
         assertEquals(summary, result);
         assertEquals(summary.getAvgFrameTime(), result.getAvgFrameTime(), EPSILON);
     }

@@ -17,6 +17,7 @@ package com.android.game.qualification.metric;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.tradefed.device.metric.DeviceMetricData;
+import com.android.tradefed.invoker.IInvocationContext;
 import com.android.tradefed.metrics.proto.MetricMeasurement.DataType;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Directionality;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Measurements;
@@ -44,13 +45,14 @@ public class MetricSummary {
     private int loopCount = 0;
     private Map<TimeType, List<LoopSummary>> summaries = new HashMap<>();
 
-    public static MetricSummary parseRunMetrics(HashMap<String, Metric> metrics) {
+    public static MetricSummary parseRunMetrics(
+            IInvocationContext context, HashMap<String, Metric> metrics) {
         MetricSummary result = new MetricSummary();
         result.loopCount = (int)metrics.get("loop_count").getMeasurements().getSingleInt();
         for (int i = 0; i < result.loopCount; i++) {
             for (TimeType type : TimeType.values()) {
                 result.summaries.get(type).add(new LoopSummary());
-                result.getLastestSummary(type).parseRunMetrics(type, i, metrics);
+                result.getLastestSummary(type).parseRunMetrics(context, type, i, metrics);
             }
         }
         return result;
@@ -119,6 +121,18 @@ public class MetricSummary {
                 .setDirection(Directionality.DOWN_BETTER)
                 .setType(DataType.PROCESSED)
                 .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
+    }
+
+    private static String getActualMetricKey(
+            IInvocationContext context, TimeType type, int loopIndex, String label) {
+        // DeviceMetricData automatically add the deviceName to the metric key if there are more
+        // than one devices.  We don't really want or care about the device in the metric data, but
+        // we need to get the actual key that was added in order to parse it correctly.
+        if (context.getDevices().size() > 1) {
+            String deviceName = context.getDeviceName(context.getDevices().get(0));
+            return String.format("{%s}:%s", deviceName, getMetricKey(type, loopIndex, label));
+        }
+        return getMetricKey(type, loopIndex, label);
     }
 
     private static String getMetricKey(TimeType type, int loopIndex, String label) {
@@ -318,20 +332,28 @@ public class MetricSummary {
             }
         }
 
-        public void parseRunMetrics(TimeType type, int runIndex, HashMap<String, Metric> runMetrics) {
-            count = getMetricLongValue(type, runIndex, "frame_count", runMetrics);
-            minFrameTime = getMetricLongValue(type, runIndex, "min_frametime", runMetrics);
-            maxFrameTime = getMetricLongValue(type, runIndex, "max_frametime", runMetrics);
-            avgFrameTime = getMetricDoubleValue(type, runIndex, "frametime", runMetrics);
-            percentile90 = getMetricLongValue(type, runIndex, "90th_percentile", runMetrics);
-            percentile95 = getMetricLongValue(type, runIndex, "95th_percentile", runMetrics);
-            percentile99 = getMetricLongValue(type, runIndex, "99th_percentile", runMetrics);
+        public void parseRunMetrics(
+                IInvocationContext context,
+                TimeType type,
+                int runIndex,
+                HashMap<String, Metric> runMetrics) {
+            count = getMetricLongValue(context, type, runIndex, "frame_count", runMetrics);
+            minFrameTime = getMetricLongValue(context, type, runIndex, "min_frametime", runMetrics);
+            maxFrameTime = getMetricLongValue(context, type, runIndex, "max_frametime", runMetrics);
+            avgFrameTime = getMetricDoubleValue(context, type, runIndex, "frametime", runMetrics);
+            percentile90 = getMetricLongValue(context, type, runIndex, "90th_percentile", runMetrics);
+            percentile95 = getMetricLongValue(context, type, runIndex, "95th_percentile", runMetrics);
+            percentile99 = getMetricLongValue(context, type, runIndex, "99th_percentile", runMetrics);
             processed = true;
         }
 
         private double getMetricDoubleValue(
-                TimeType type, int runIndex, String metric, HashMap<String, Metric> runMetrics) {
-            Metric m = runMetrics.get(getMetricKey(type, runIndex, metric));
+                IInvocationContext context,
+                TimeType type,
+                int runIndex,
+                String metric,
+                HashMap<String, Metric> runMetrics) {
+            Metric m = runMetrics.get(getActualMetricKey(context, type, runIndex, metric));
             if (!m.hasMeasurements()) {
                 throw new RuntimeException();
             }
@@ -339,8 +361,12 @@ public class MetricSummary {
         }
 
         private long getMetricLongValue(
-                TimeType type, int runIndex, String metric, HashMap<String, Metric> runMetrics) {
-            Metric m = runMetrics.get(getMetricKey(type, runIndex, metric));
+                IInvocationContext context,
+                TimeType type,
+                int runIndex,
+                String metric,
+                HashMap<String, Metric> runMetrics) {
+            Metric m = runMetrics.get(getActualMetricKey(context, type, runIndex, metric));
             if (!m.hasMeasurements()) {
                 throw new RuntimeException();
             }
