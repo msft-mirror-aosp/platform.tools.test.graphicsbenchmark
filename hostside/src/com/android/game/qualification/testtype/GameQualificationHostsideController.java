@@ -161,51 +161,24 @@ public class GameQualificationHostsideController implements
         getDevice().pushFile(mApkInfoFile, ApkInfo.APK_LIST_LOCATION);
         String serial = getDevice().getSerialNumber();
 
-        for (ApkInfo apk : mApks) {
-            boolean setupFailed = false;
-            File apkFile = findApk(apk.getFileName());
-            String setupOutputString = "";
-            if (apk.getScript() != null) {
-                String cmd = apk.getScript();
-                CLog.i(
-                        "Executing command: " + cmd + "\n"
-                                + "Working directory: " + mApkInfoFile.getParent());
-                try {
-                    ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
-                    pb.environment().put("ANDROID_SERIAL", serial);
-                    pb.directory(mApkInfoFile.getParentFile());
-                    pb.redirectErrorStream(true);
+        long startTime = System.currentTimeMillis();
+        listener.testRunStarted("gamequalification", mApks.size());
 
-                    Process p = pb.start();
-                    boolean finished = p.waitFor(5, TimeUnit.MINUTES);
-                    if (!finished || p.exitValue() != 0) {
-                        setupFailed = true;
-                        ByteArrayOutputStream os = new ByteArrayOutputStream();
-                        ByteStreams.copy(p.getInputStream(), os);
-                        setupOutputString = os.toString(StandardCharsets.UTF_8.name());
-                        if (!finished) {
-                            setupOutputString += "\n***TIMEOUT waiting for script to complete.***";
-                            p.destroy();
-                        }
-                    }
-                } catch (IOException | InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        for (ApkInfo apk : mApks) {
+            File apkFile = findApk(apk.getFileName());
+            RunScriptResult setupResult = RunScriptResult.SUCCESS;
+            if (apk.getScript() != null) {
+                setupResult = runSetupScript(apk, serial);
             }
-            if (apkFile != null && !setupFailed) {
+            if (apkFile != null && !setupResult.failed) {
                 CLog.i("Installing %s on %s.", apkFile.getName(), getDevice().getSerialNumber());
                 getDevice().installPackage(apkFile, true);
             }
             mAGQMetricCollector.setApkInfo(apk);
 
-            // Might seem counter-intuitive, but the easiest way to get per-package results is
-            // to put this call and the corresponding testRunEnd inside the for loop for now
-            listener.testRunStarted("gamequalification", mApks.size());
-
             TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
 
             HashMap<String, MetricMeasurement.Metric> testMetrics = new HashMap<>();
-            // TODO: Populate metrics
 
             listener.testStarted(identifier);
 
@@ -220,25 +193,73 @@ public class GameQualificationHostsideController implements
                                 "Missing APK.  Unable to find %s in %s.\n",
                                 apk.getFileName(),
                                 getApkDir()));
-            } else if (setupFailed) {
+            } else if (setupResult.failed) {
                 listener.testFailed(
                         identifier,
-                        "Execution of setup script returned non-zero value:\n" + setupOutputString);
+                        "Execution of setup script returned non-zero value:\n" + setupResult.output);
             } else {
                 runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
                 ResultDataProto.Result resultData = retrieveResultData();
                 mAGQMetricCollector.setDeviceResultData(resultData);
-            }
 
-            if (mAGQMetricCollector.isAppTerminated()) {
-                listener.testFailed(identifier, "App was terminated");
+                if (mAGQMetricCollector.isAppTerminated()) {
+                    listener.testFailed(identifier, "App was terminated");
+                }
             }
 
             listener.testEnded(identifier, testMetrics);
-            listener.testRunEnded(0, runMetrics);
-
             getDevice().uninstallPackage(apk.getPackageName());
         }
+        listener.testRunEnded(System.currentTimeMillis() - startTime, runMetrics);
+
+    }
+
+    private static class RunScriptResult {
+        private static RunScriptResult SUCCESS = new RunScriptResult(false, "");
+
+        private boolean failed;
+        private String output;
+
+        public RunScriptResult(boolean failed, String output) {
+            this.failed = failed;
+            this.output = output;
+        }
+    }
+
+    /**
+     * Execute setup script defined by the ApkInfo.
+     *
+     * @param apk ApkInfo.
+     * @param deviceSerial Serial number of the device to be executed on.
+     * @return Output string
+     */
+    private RunScriptResult runSetupScript(ApkInfo apk, String deviceSerial) {
+        String cmd = apk.getScript();
+        CLog.i(
+                "Executing command: " + cmd + "\n"
+                        + "Working directory: " + mApkInfoFile.getParent());
+        try {
+            ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
+            pb.environment().put("ANDROID_SERIAL", deviceSerial);
+            pb.directory(mApkInfoFile.getParentFile());
+            pb.redirectErrorStream(true);
+
+            Process p = pb.start();
+            boolean finished = p.waitFor(5, TimeUnit.MINUTES);
+            if (!finished || p.exitValue() != 0) {
+                ByteArrayOutputStream os = new ByteArrayOutputStream();
+                ByteStreams.copy(p.getInputStream(), os);
+                String output = os.toString(StandardCharsets.UTF_8.name());
+                if (!finished) {
+                    output += "\n***TIMEOUT waiting for script to complete.***";
+                    p.destroy();
+                }
+                return new RunScriptResult(true, output);
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return RunScriptResult.SUCCESS;
     }
 
     private ResultDataProto.Result retrieveResultData() throws DeviceNotAvailableException {
@@ -246,8 +267,7 @@ public class GameQualificationHostsideController implements
 
         if (resultFile != null) {
             try (InputStream inputStream = new FileInputStream(resultFile)) {
-                ResultDataProto.Result data = ResultDataProto.Result.parseFrom(inputStream);
-                return data;
+                return ResultDataProto.Result.parseFrom(inputStream);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -308,8 +328,8 @@ public class GameQualificationHostsideController implements
         }
     }
 
-
-    // TODO: Migrate to use BaseHostJUnit4Test when available.
+    // TODO: Migrate to use BaseHostJUnit4Test when possible.  It is not currently possible because
+    // the IInvocationContext is private.
     /**
      * Method to run an installed instrumentation package.
      *
