@@ -17,6 +17,7 @@
 package com.android.game.qualification.testtype;
 
 import com.android.annotations.Nullable;
+import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.game.qualification.ApkInfo;
 import com.android.game.qualification.ApkListXmlParser;
@@ -33,6 +34,8 @@ import com.android.tradefed.log.LogUtil.CLog;
 import com.android.tradefed.metrics.proto.MetricMeasurement;
 import com.android.tradefed.result.CollectingTestListener;
 import com.android.tradefed.result.ITestInvocationListener;
+import com.android.tradefed.result.InputStreamSource;
+import com.android.tradefed.result.LogDataType;
 import com.android.tradefed.result.TestDescription;
 import com.android.tradefed.testtype.IDeviceTest;
 import com.android.tradefed.testtype.IInvocationContextReceiver;
@@ -44,6 +47,7 @@ import com.google.common.io.Files;
 
 import org.xml.sax.SAXException;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -59,6 +63,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import javax.imageio.ImageIO;
 import javax.xml.parsers.ParserConfigurationException;
 
 public class GameQualificationHostsideController implements
@@ -176,12 +181,13 @@ public class GameQualificationHostsideController implements
             }
             mAGQMetricCollector.setApkInfo(apk);
 
-            TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
-
             HashMap<String, MetricMeasurement.Metric> testMetrics = new HashMap<>();
 
+            // APK Test.
+            TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
             listener.testStarted(identifier);
 
+            boolean apkTestPassed = false;
             if (getDevice().getKeyguardState().isKeyguardShowing()) {
                 listener.testFailed(
                         identifier,
@@ -204,10 +210,25 @@ public class GameQualificationHostsideController implements
 
                 if (mAGQMetricCollector.isAppTerminated()) {
                     listener.testFailed(identifier, "App was terminated");
+                } else {
+                    apkTestPassed = true;
                 }
             }
 
             listener.testEnded(identifier, testMetrics);
+
+            if (apkTestPassed) {
+                // Screenshot test.
+                TestDescription screenshotTestId =
+                        new TestDescription(CLASS, "screenshotTest[" + apk.getName() + "]");
+                listener.testStarted(screenshotTestId);
+                try {
+                    checkScreenshot(listener, screenshotTestId);
+                } catch (DeviceNotAvailableException e) {
+                    listener.testFailed(screenshotTestId, e.getMessage());
+                }
+                listener.testEnded(screenshotTestId, testMetrics);
+            }
             getDevice().uninstallPackage(apk.getPackageName());
         }
         listener.testRunEnded(System.currentTimeMillis() - startTime, runMetrics);
@@ -325,6 +346,43 @@ public class GameQualificationHostsideController implements
             mApks = parser.parse(mApkInfoFile);
         } catch (IOException | ParserConfigurationException | SAXException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    /** Check if an image is black. */
+    @VisibleForTesting
+    static boolean isImageBlack(InputStream stream) throws IOException {
+        BufferedImage img = ImageIO.read(stream);
+        for (int i = 0; i < img.getWidth(); i++) {
+            // Only check the middle portion of the image to avoid status bar.
+            for (int j = img.getHeight() / 4; j < img.getHeight() * 3 / 4; j++) {
+                int color = img.getRGB(i, j);
+                // Check if pixel is non-black and not fully transparent.
+                if ((color & 0x00ffffff) != 0 && (color >> 24) != 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private void checkScreenshot(ITestInvocationListener listener, TestDescription testId)
+            throws DeviceNotAvailableException {
+        try (InputStreamSource screenSource = mDevice.getScreenshot()) {
+            listener.testLog(String.format(
+                    "screenshot-%s",
+                    testId.getTestName()),
+                    LogDataType.PNG,
+                    screenSource);
+            try (InputStream stream = screenSource.createInputStream()) {
+                stream.reset();
+                if (isImageBlack(stream)) {
+                    listener.testFailed(testId, "Screenshot was all black.");
+                }
+            }
+        } catch (IOException e) {
+            listener.testFailed(
+                    testId, "Failed reading screenshot data:\n" + e.getMessage());
         }
     }
 
