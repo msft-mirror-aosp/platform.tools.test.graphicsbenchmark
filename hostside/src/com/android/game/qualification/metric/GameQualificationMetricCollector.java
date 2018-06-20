@@ -89,6 +89,12 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         mDevice = device;
     }
 
+    public boolean isAppStarted() {
+        synchronized(this) {
+            return mAppStarted;
+        }
+    }
+
     public boolean isAppTerminated() {
         synchronized(this) {
             return mAppTerminated;
@@ -325,10 +331,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                     }
 
                     outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
-
-                    if (mDeviceResultData.getEventsCount() == 0) {
-                        CLog.w("No start intent given; assuming single run with no loading period to exclude.");
-                    }
 
                     MetricSummary summary = new MetricSummary();
 

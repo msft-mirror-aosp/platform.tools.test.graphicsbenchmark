@@ -208,7 +208,12 @@ public class GameQualificationHostsideController implements
                 ResultDataProto.Result resultData = retrieveResultData();
                 mAGQMetricCollector.setDeviceResultData(resultData);
 
-                if (mAGQMetricCollector.isAppTerminated()) {
+                if (!mAGQMetricCollector.isAppStarted()) {
+                    listener.testFailed(
+                            identifier,
+                            "Unable to retrieve any metrics.  App might not have started or "
+                                    + "the target layer name did not exists.");
+                } else if (mAGQMetricCollector.isAppTerminated()) {
                     listener.testFailed(identifier, "App was terminated");
                 } else {
                     apkTestPassed = true;
