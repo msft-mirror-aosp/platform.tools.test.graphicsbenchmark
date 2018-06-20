@@ -19,7 +19,9 @@ package com.android.game.qualification.metric;
 import static com.android.game.qualification.metric.MetricSummary.TimeType.PRESENT;
 import static com.android.game.qualification.metric.MetricSummary.TimeType.READY;
 
+import com.android.annotations.Nullable;
 import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.proto.ResultDataProto;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
@@ -33,6 +35,8 @@ import com.android.tradefed.result.FileInputStreamSource;
 import com.android.tradefed.result.InputStreamSource;
 import com.android.tradefed.result.LogDataType;
 
+import com.google.common.base.Preconditions;
+
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -44,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.regex.Pattern;
 
 /**
  * A {@link com.android.tradefed.device.metric.ScheduledDeviceMetricCollector} to collect graphics
@@ -51,7 +56,10 @@ import java.util.TimerTask;
  */
 public class GameQualificationMetricCollector extends BaseDeviceMetricCollector {
     private long mLatestSeen = 0;
+    @Nullable
     private ApkInfo mTestApk;
+    @Nullable
+    private CertificationRequirements mCertificationRequirements;
     private ResultDataProto.Result mDeviceResultData;
     private long mVSyncPeriod = 0;
     private ArrayList<GameQualificationMetric> mElapsedTimes;
@@ -59,6 +67,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private boolean mAppStarted;
     private boolean mAppTerminated;
     private File mRawFile;
+    private boolean mEnabled;
 
     @Option(
         name = "fixed-schedule-rate",
@@ -78,6 +87,12 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     public void setApkInfo(ApkInfo apk) {
         synchronized(this) {
             mTestApk = apk;
+        }
+    }
+
+    public void setCertificationRequirements(@Nullable CertificationRequirements requirements) {
+        synchronized(this) {
+            mCertificationRequirements = requirements;
         }
     }
 
@@ -101,13 +116,23 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         }
     }
 
+    public void enable() {
+        mEnabled = true;
+    }
+
+    public void disable() {
+        mEnabled = false;
+    }
+
     @Override
     public final void onTestStart(DeviceMetricData runData) {
-        if (mTestApk == null) {
-            // If APK info is not provided, then the test is not triggered from
+        if (!mEnabled) {
+            // GameQualificationMetricCollector is only enabled by
             // GameQualificationHostsideController.
             return;
         }
+        Preconditions.checkState(mTestApk != null);
+
         CLog.v("Test run started on device %s.", mDevice);
 
         try {
@@ -152,7 +177,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
     @Override
     public final void onTestEnd(DeviceMetricData runData, Map<String, Metric> currentRunMetrics) {
-        if (mTestApk == null) {
+        if (!mEnabled) {
             return;
         }
 
@@ -254,7 +279,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private void onStart(DeviceMetricData runData) {}
 
     private void processTimestampsSlice(
-            MetricSummary summary,
+            MetricSummary.Builder summary,
             int runIndex,
             long startTimestamp,
             long endTimestamp,
@@ -332,7 +357,8 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
                     outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
-                    MetricSummary summary = new MetricSummary();
+                    MetricSummary.Builder summaryBuilder =
+                            new MetricSummary.Builder(mCertificationRequirements, mVSyncPeriod);
 
                     long startTime = 0L;
                     int runIndex = 0;
@@ -344,18 +370,19 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                         long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
 
                         if (startTime != 0) {
-                            processTimestampsSlice(summary, runIndex++, startTime, endTime, outputFile);
+                            processTimestampsSlice(summaryBuilder, runIndex++, startTime, endTime, outputFile);
                         }
                         startTime = endTime;
                     }
 
                     processTimestampsSlice(
-                            summary,
+                            summaryBuilder,
                             runIndex,
                             startTime,
                             mElapsedTimes.get(mElapsedTimes.size() - 1).getActualPresentTime(),
                             outputFile);
 
+                    MetricSummary summary = summaryBuilder.build();
                     summary.addToMetricData(runData);
                     outputFile.write(summary.toString());
                     outputFile.flush();

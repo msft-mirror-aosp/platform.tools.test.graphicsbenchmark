@@ -21,7 +21,7 @@ import com.android.game.qualification.ApkListXmlParser.Field;
 import java.util.List;
 
 public class ApkInfo {
-public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-info.xml";
+    public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-info.xml";
 
     public static class Argument {
         public enum Type {
@@ -72,7 +72,8 @@ public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-in
             String fileName,
             String packageName,
             String layerName,
-            String script, List<Argument> args,
+            String script,
+            List<Argument> args,
             int loadTime,
             int runTime,
             boolean expectIntents) {
@@ -123,15 +124,16 @@ public static final String APK_LIST_LOCATION = "/sdcard/GameQualification/apk-in
     }
 
     /**
-     * (Optional) Duration the app will be run for before it is terminated, prior to producing a
-     * START_LOOP intent.
+     * (Optional) Duration (in milliseconds) the app will be run for before it is terminated, prior
+     * to producing a START_LOOP intent. [default: 10000]
      */
     public int getLoadTime() {
         return mLoadTime;
     }
 
     /**
-     * (Optional) Duration the app will be run for after the first START_LOOP intent is received.
+     * (Optional) Duration (in milliseconds) the app will be run for after the first START_LOOP
+     * intent is received. [default: 10000]
      */
     public int getRunTime() {
         return mRunTime;

@@ -18,6 +18,7 @@ package com.android.game.qualification.reporter;
 import com.android.ddmlib.Log;
 import com.android.ddmlib.Log.LogLevel;
 import com.android.ddmlib.testrunner.TestResult.TestStatus;
+import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.metric.MetricSummary;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
@@ -48,7 +49,12 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
     private boolean mSuppressPassedTest = false;
 
     private Map<TestDescription, MetricSummary> summaries = new ConcurrentHashMap<>();
+    private Map<TestDescription, CertificationRequirements> mRequirements = new ConcurrentHashMap<>();
     private List<LogFile> mLogFiles = new ArrayList<>();
+
+    public void putRequirements(TestDescription testId, CertificationRequirements requirements) {
+        mRequirements.put(testId, requirements);
+    }
 
     /**
      * Collect metrics produces by
@@ -59,7 +65,9 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
         super.testEnded(testId, elapsedTime, metrics);
         if (!metrics.isEmpty()) {
             MetricSummary summary = MetricSummary.parseRunMetrics(getInvocationContext(), metrics);
-            summaries.put(testId, summary);
+            if (summary != null) {
+                summaries.put(testId, summary);
+            }
         }
     }
 
@@ -118,7 +126,15 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
         }
 
         // Determine certification level.
+        sb.append("Certification:\n");
+
+        boolean certified = true;
+
+        sb.append("Functional tests [");
+        sb.append(hasFailedTests() ? "FAILED" : "PASSED");
+        sb.append("]\n");
         if (hasFailedTests()) {
+            certified = false;
             sb.append("Certification failed because the following tests failed:\n");
             for (TestRunResult testRunResult : getRunResults()) {
                 for (TestDescription test : testRunResult.getFailedTests()) {
@@ -127,10 +143,19 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
                     sb.append('\n');
                 }
             }
-        } else {
-            // TODO: Actually check if run metrics are above threshold.
-            sb.append("Certification completed.\n");
         }
+
+        Report performanceReport = createPerformanceReport();
+        sb.append("Performance tests [");
+        sb.append(performanceReport.success ? "PASSED" : "FAILED");
+        sb.append("]\n");
+        sb.append(performanceReport.text);
+        if (!performanceReport.success) {
+            certified = false;
+        }
+
+        sb.append("\nGame Core Certification: ");
+        sb.append(certified ? "PASSED" : "FAILED");
         return "Test results:\n" + sb.toString().trim() + "\n";
     }
 
@@ -160,6 +185,49 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
         }
         sb.append("\n");
         return sb.toString();
+    }
+
+    private static class Report {
+        boolean success;
+        String text;
+
+        public Report(boolean success, String text) {
+            this.success = success;
+            this.text = text;
+        }
+    }
+
+    /**
+     * Create a report on the performance metrics against certification requirements.
+     *
+     * Returns an empty String if all metrics passes certification.
+     */
+    private Report createPerformanceReport() {
+        StringBuilder text = new StringBuilder();
+        boolean success = true;
+        for (Map.Entry<TestDescription, MetricSummary> entry : summaries.entrySet()) {
+            TestDescription testId = entry.getKey();
+            MetricSummary metrics =  entry.getValue();
+            CertificationRequirements requirements = mRequirements.get(entry.getKey());
+            if (requirements == null) {
+                text.append("Warning: ");
+                text.append(testId.getTestName());
+                text.append(" was executed, but performance metrics was ignored because "
+                        + "certification requirements was not found.\n");
+            } else {
+                if (metrics.getJankRate() > requirements.getJankRate()) {
+                    success = false;
+                    text.append("Jank rate for ");
+                    text.append(testId.getTestName());
+                    text.append(" is too high, actual: ");
+                    text.append(metrics.getJankRate());
+                    text.append(", target: ");
+                    text.append(requirements.getJankRate());
+                    text.append("\n");
+                }
+            }
+        }
+        return new Report(success, text.toString());
     }
 
     /**
