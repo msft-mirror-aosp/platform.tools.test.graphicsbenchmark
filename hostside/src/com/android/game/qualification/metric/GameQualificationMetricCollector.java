@@ -326,10 +326,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
                     outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
-                    if (mDeviceResultData.getEventsCount() == 0) {
-                        CLog.w("No start intent given; assuming single run with no loading period to exclude.");
-                    }
-
                     MetricSummary summary = new MetricSummary();
 
                     long startTime = 0L;
