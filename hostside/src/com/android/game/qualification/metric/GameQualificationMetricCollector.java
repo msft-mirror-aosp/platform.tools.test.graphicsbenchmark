@@ -49,6 +49,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * A {@link com.android.tradefed.device.metric.ScheduledDeviceMetricCollector} to collect graphics
@@ -68,6 +70,8 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private boolean mAppTerminated;
     private File mRawFile;
     private boolean mEnabled;
+    private Pattern mLayerPattern;
+    private String mTestLayer;
 
     @Option(
         name = "fixed-schedule-rate",
@@ -146,7 +150,18 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             mLatestSeen = 0;
             mAppStarted = false;
             mAppTerminated = false;
+
+            try {
+                mLayerPattern = Pattern.compile(mTestApk.getLayerName());
+            } catch (PatternSyntaxException e) {
+                // TODO: Hostside controller should properly report the error
+                CLog.e(e);
+                mAppStarted = false;
+                return;
+            }
         }
+
+
 
         onStart(runData);
         mTimer = new Timer();
@@ -199,9 +214,22 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private void collect(DeviceMetricData runData) throws InterruptedException {
         synchronized(this) {
             try {
-                CLog.d("Collecting benchmark stats for layer: %s", mTestApk.getLayerName());
 
-                String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
+                if (!mAppStarted) {
+                    String listCmd = "dumpsys SurfaceFlinger --list";
+                    String[] layerList = mDevice.executeShellCommand(listCmd).split("\n");
+
+                    for (int i = 0; i < layerList.length; i++) {
+                        Matcher m = mLayerPattern.matcher(layerList[i]);
+                        if (m.matches()) {
+                            mTestLayer = layerList[i];
+                        }
+                    }
+                }
+
+                CLog.d("Collecting benchmark stats for layer: %s", mTestLayer);
+
+                String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestLayer+ "\"";
                 String[] raw = mDevice.executeShellCommand(cmd).split("\n");
 
                 if (raw.length == 1) {
