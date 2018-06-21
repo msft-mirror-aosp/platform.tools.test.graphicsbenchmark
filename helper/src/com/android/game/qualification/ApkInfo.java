@@ -16,7 +16,7 @@
 
 package com.android.game.qualification;
 
-import com.android.game.qualification.ApkListXmlParser.Field;
+import com.android.game.qualification.GameCoreConfigurationXmlParser.Field;
 
 import java.util.List;
 
