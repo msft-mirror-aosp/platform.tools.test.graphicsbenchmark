@@ -16,6 +16,9 @@
 
 package com.android.game.qualification.metric;
 
+import static com.android.game.qualification.metric.MetricSummary.TimeType.PRESENT;
+import static com.android.game.qualification.metric.MetricSummary.TimeType.READY;
+
 import com.android.game.qualification.ApkInfo;
 import com.android.game.qualification.proto.ResultDataProto;
 import com.android.tradefed.config.Option;
@@ -24,9 +27,6 @@ import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
 import com.android.tradefed.device.metric.DeviceMetricData;
 import com.android.tradefed.log.LogUtil.CLog;
-import com.android.tradefed.metrics.proto.MetricMeasurement.DataType;
-import com.android.tradefed.metrics.proto.MetricMeasurement.Directionality;
-import com.android.tradefed.metrics.proto.MetricMeasurement.Measurements;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
 import com.android.tradefed.result.ByteArrayInputStreamSource;
 import com.android.tradefed.result.FileInputStreamSource;
@@ -45,7 +45,10 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-/** A {@link ScheduledDeviceMetricCollector} to collect graphics benchmarking stats at regular intervals. */
+/**
+ * A {@link com.android.tradefed.device.metric.ScheduledDeviceMetricCollector} to collect graphics
+ * benchmarking stats at regular intervals.
+ */
 public class GameQualificationMetricCollector extends BaseDeviceMetricCollector {
     private long mLatestSeen = 0;
     private ApkInfo mTestApk;
@@ -86,6 +89,12 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         mDevice = device;
     }
 
+    public boolean isAppStarted() {
+        synchronized(this) {
+            return mAppStarted;
+        }
+    }
+
     public boolean isAppTerminated() {
         synchronized(this) {
             return mAppTerminated;
@@ -93,7 +102,12 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     @Override
-    public final void onTestRunStart(DeviceMetricData runData) {
+    public final void onTestStart(DeviceMetricData runData) {
+        if (mTestApk == null) {
+            // If APK info is not provided, then the test is not triggered from
+            // GameQualificationHostsideController.
+            return;
+        }
         CLog.v("Test run started on device %s.", mDevice);
 
         try {
@@ -137,7 +151,11 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     @Override
-    public final void onTestRunEnd(DeviceMetricData runData, Map<String, Metric> currentRunMetrics) {
+    public final void onTestEnd(DeviceMetricData runData, Map<String, Metric> currentRunMetrics) {
+        if (mTestApk == null) {
+            return;
+        }
+
         if (mTimer != null) {
             mTimer.cancel();
             mTimer.purge();
@@ -156,10 +174,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private void collect(DeviceMetricData runData) throws InterruptedException {
         synchronized(this) {
             try {
-                if (mTestApk == null) {
-                    CLog.e("No test apk info provided.");
-                    return;
-                }
                 CLog.d("Collecting benchmark stats for layer: %s", mTestApk.getLayerName());
 
                 String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestApk.getLayerName()+ "\"";
@@ -239,10 +253,12 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
     private void onStart(DeviceMetricData runData) {}
 
-    private void processTimestampsSlice(int runIndex, long startTimestamp, long endTimestamp, BufferedWriter outputFile, DeviceMetricData runData) throws IOException {
-        MetricSummary presentTimeSummary = new MetricSummary();
-        MetricSummary readyTimeSummary = new MetricSummary();
-
+    private void processTimestampsSlice(
+            MetricSummary summary,
+            int runIndex,
+            long startTimestamp,
+            long endTimestamp,
+            BufferedWriter outputFile) throws IOException {
         outputFile.write("Started run " + runIndex + " at: " + startTimestamp + " ns\n");
 
         outputFile.write("Present Time\tFrame Ready Time\n");
@@ -252,6 +268,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
         List<Long> frameTimes = new ArrayList<>();
 
+        summary.beginLoop();
         for(GameQualificationMetric metric : mElapsedTimes)
         {
             long presentTime = metric.getActualPresentTime();
@@ -272,21 +289,18 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
             long presentTimeDiff = presentTime - prevPresentTime;
             prevPresentTime = presentTime;
-
-            presentTimeSummary.addFrameTime(presentTimeDiff);
-
-
+            summary.addFrameTime(PRESENT, presentTimeDiff);
 
             long readyTimeDiff = readyTime - prevReadyTime;
             prevReadyTime = readyTime;
-
-            readyTimeSummary.addFrameTime(readyTimeDiff);
+            summary.addFrameTime(READY, readyTimeDiff);
 
             numOfTimestamps++;
 
             outputFile.write(presentTimeDiff + " ns\t\t" + readyTimeDiff + " ns\n");
             frameTimes.add(presentTimeDiff);
         }
+        summary.endLoop();
 
         // There's a fair amount of slop in the system wrt device timing vs host orchestration,
         // so it's possible that we'll receive an extra intent after we've stopped caring.
@@ -294,76 +308,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
             outputFile.write("No samples in period, assuming spurious intent.\n\n");
             return;
         }
-
-        outputFile.write("\nSTATS\n");
-
-        presentTimeSummary.processFrameTimes();
-        outputFile.write("Present Summary Statistics\n");
-        outputFile.write(presentTimeSummary + "\n\n");
-
-        readyTimeSummary.processFrameTimes();
-        outputFile.write("Frame Ready Summary Statistics\n");
-        outputFile.write(readyTimeSummary + "\n\n");
-
-        runData.addMetric(
-                "run_" + runIndex + ".present_min_fps",
-                getFpsMetric(presentTimeSummary.getMinFPS()));
-        runData.addMetric(
-                "run_" + runIndex + ".present_max_fps",
-                getFpsMetric(presentTimeSummary.getMaxFPS()));
-        runData.addMetric(
-                "run_" + runIndex + ".present_fps",
-                getFpsMetric(presentTimeSummary.getAvgFPS()));
-
-        runData.addMetric(
-                "run_" + runIndex + ".present_min_frametime",
-                getFrameTimeMetric(presentTimeSummary.getMinFrameTime()));
-        runData.addMetric(
-                "run_" + runIndex + ".present_max_frametime",
-                getFrameTimeMetric(presentTimeSummary.getMaxFrameTime()));
-        runData.addMetric(
-                "run_" + runIndex + ".present_frametime",
-                getFrameTimeMetric(presentTimeSummary.getAvgFrameTime()));
-        runData.addMetric(
-                "run_" + runIndex + ".present_90th_percentile",
-                getFrameTimeMetric(presentTimeSummary.get90thPercentile()));
-        runData.addMetric(
-                "run_" + runIndex + ".present_95th_percentile",
-                getFrameTimeMetric(presentTimeSummary.get95thPercentile()));
-        runData.addMetric(
-                "run_" + runIndex + ".present_99th_percentile",
-                getFrameTimeMetric(presentTimeSummary.get99thPercentile()));
-
-        runData.addMetric(
-                "run_" + runIndex + ".ready_min_fps",
-                getFpsMetric(readyTimeSummary.getMinFPS()));
-        runData.addMetric(
-                "run_" + runIndex + ".ready_max_fps",
-                getFpsMetric(readyTimeSummary.getMaxFPS()));
-        runData.addMetric(
-                "run_" + runIndex + ".ready_fps",
-                getFpsMetric(readyTimeSummary.getAvgFPS()));
-
-        runData.addMetric(
-                "run_" + runIndex + ".ready_min_frametime",
-                getFrameTimeMetric(readyTimeSummary.getMinFrameTime()));
-        runData.addMetric(
-                "run_" + runIndex + ".ready_max_frametime",
-                getFrameTimeMetric(readyTimeSummary.getMaxFrameTime()));
-        runData.addMetric(
-                "run_" + runIndex + ".ready_frametime",
-                getFrameTimeMetric(readyTimeSummary.getAvgFrameTime()));
-        runData.addMetric(
-                "run_" + runIndex + ".ready_90th_percentile",
-                getFrameTimeMetric(readyTimeSummary.get90thPercentile()));
-        runData.addMetric(
-                "run_" + runIndex + ".ready_95th_percentile",
-                getFrameTimeMetric(readyTimeSummary.get95thPercentile()));
-        runData.addMetric(
-                "run_" + runIndex + ".ready_99th_percentile",
-                getFrameTimeMetric(readyTimeSummary.get99thPercentile()));
-
-
 
         printHistogram(frameTimes, runIndex);
     }
@@ -388,9 +332,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
                     outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
 
-                    if (mDeviceResultData.getEventsCount() == 0) {
-                        CLog.w("No start intent given; assuming single run with no loading period to exclude.");
-                    }
+                    MetricSummary summary = new MetricSummary();
 
                     long startTime = 0L;
                     int runIndex = 0;
@@ -402,13 +344,20 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
                         long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
 
                         if (startTime != 0) {
-                            processTimestampsSlice(runIndex++, startTime, endTime, outputFile, runData);
+                            processTimestampsSlice(summary, runIndex++, startTime, endTime, outputFile);
                         }
                         startTime = endTime;
                     }
 
-                    processTimestampsSlice(runIndex, startTime, mElapsedTimes.get(mElapsedTimes.size() - 1).getActualPresentTime(), outputFile, runData);
+                    processTimestampsSlice(
+                            summary,
+                            runIndex,
+                            startTime,
+                            mElapsedTimes.get(mElapsedTimes.size() - 1).getActualPresentTime(),
+                            outputFile);
 
+                    summary.addToMetricData(runData);
+                    outputFile.write(summary.toString());
                     outputFile.flush();
                     try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
                         testLog("GameQualification-" + mTestApk.getName(), LogDataType.TEXT, source);
@@ -436,30 +385,5 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private Metric.Builder getFpsMetric(double value) {
-        return Metric.newBuilder()
-            .setUnit("fps")
-            .setDirection(Directionality.UP_BETTER)
-            .setType(DataType.PROCESSED)
-            .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
-    }
-
-
-    private Metric.Builder getFrameTimeMetric(long value) {
-        return Metric.newBuilder()
-            .setUnit("ns")
-            .setDirection(Directionality.DOWN_BETTER)
-            .setType(DataType.PROCESSED)
-            .setMeasurements(Measurements.newBuilder().setSingleInt(value));
-    }
-
-    private Metric.Builder getFrameTimeMetric(double value) {
-        return Metric.newBuilder()
-                .setUnit("ns")
-                .setDirection(Directionality.DOWN_BETTER)
-                .setType(DataType.PROCESSED)
-                .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
     }
 }

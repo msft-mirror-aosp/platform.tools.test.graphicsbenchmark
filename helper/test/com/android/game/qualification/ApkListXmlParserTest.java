@@ -55,7 +55,7 @@ public class ApkListXmlParserTest {
                         + "        <packageName>com.foo.test</packageName>\n"
                         + "        <layerName>com.foo.test</layerName>\n"
                         + "        <script>script.sh</script>\n"
-                        + "        <startTime>21</startTime>\n"
+                        + "        <loadTime>21</loadTime>\n"
                         + "        <runTime>42</runTime>\n"
                         + "    </apk>\n"
                         + "</apk-info>\n").getBytes())) {

@@ -126,6 +126,7 @@ public class GameQualificationTest {
             }
         }
 
+        mReport.appLaunched(SystemClock.uptimeMillis());
         InstrumentationRegistry.getContext().startActivity(intent);
         mHandler.postDelayed(() -> {
             if (mApk.getExpectIntents()) {

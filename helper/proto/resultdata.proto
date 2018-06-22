@@ -8,6 +8,7 @@ option java_outer_classname = "ResultDataProto";
 message Event {
   enum Type {
     START_LOOP = 1;
+    APP_LAUNCH = 2;
   }
 
   optional Type type = 1;
