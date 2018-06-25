@@ -31,9 +31,9 @@ import java.util.List;
 import javax.xml.parsers.ParserConfigurationException;
 
 @RunWith(JUnit4.class)
-public class ApkListXmlParserTest {
+public class GameCoreConfigurationXmlParserTest {
     private static final float EPSILON = Math.ulp(16.666f);
-    ApkListXmlParser parser = new ApkListXmlParser();
+    GameCoreConfigurationXmlParser parser = new GameCoreConfigurationXmlParser();
 
     @Test
     public void testSingleApkInfo() throws ParserConfigurationException, SAXException, IOException {

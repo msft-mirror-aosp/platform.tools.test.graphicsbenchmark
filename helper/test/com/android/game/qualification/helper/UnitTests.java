@@ -16,7 +16,7 @@
 
 package com.android.game.qualification.helper;
 
-import com.android.game.qualification.ApkListXmlParserTest;
+import com.android.game.qualification.GameCoreConfigurationXmlParserTest;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -24,7 +24,7 @@ import org.junit.runners.Suite.SuiteClasses;
 
 @RunWith(Suite.class)
 @SuiteClasses({
-        ApkListXmlParserTest.class
+        GameCoreConfigurationXmlParserTest.class
 })
 public class UnitTests {
     // empty on purpose

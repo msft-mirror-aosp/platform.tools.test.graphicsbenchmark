@@ -20,7 +20,7 @@ import com.android.annotations.Nullable;
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.game.qualification.ApkInfo;
-import com.android.game.qualification.ApkListXmlParser;
+import com.android.game.qualification.GameCoreConfigurationXmlParser;
 import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.GameCoreConfiguration;
 import com.android.game.qualification.ResultData;
@@ -381,7 +381,7 @@ public class GameQualificationHostsideController implements
                 }
             }
         }
-        ApkListXmlParser parser = new ApkListXmlParser();
+        GameCoreConfigurationXmlParser parser = new GameCoreConfigurationXmlParser();
         try {
             mGameCoreConfiguration = parser.parse(mApkInfoFile);
             mApks = mGameCoreConfiguration.getApkInfo();

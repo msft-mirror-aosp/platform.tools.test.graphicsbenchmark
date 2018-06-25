@@ -38,7 +38,7 @@ import javax.xml.parsers.ParserConfigurationException;
 /**
  * Parser to read apk-info.xml.
  */
-public class ApkListXmlParser {
+public class GameCoreConfigurationXmlParser {
 
     public enum Field {
         NAME("name", null),
@@ -75,7 +75,7 @@ public class ApkListXmlParser {
         }
     }
 
-    public ApkListXmlParser() {
+    public GameCoreConfigurationXmlParser() {
     }
 
     public GameCoreConfiguration parse(File file)
