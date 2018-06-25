@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.android.game.qualification;
 
 import org.w3c.dom.Document;
@@ -27,8 +26,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Function;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -40,97 +41,142 @@ import javax.xml.parsers.ParserConfigurationException;
 public class ApkListXmlParser {
 
     public enum Field {
-        NAME("name"),
-        FILE_NAME("fileName"),
-        PACKAGE_NAME("packageName"),
-        LAYER_NAME("layerName"),
-        SCRIPT("script"),
-        ARGS("args"),
-        LOAD_TIME("loadTime"),
-        RUN_TIME("runTime"),
-        EXPECT_INTENTS("expectIntents");
+        NAME("name", null),
+
+        // Certification requirements
+        TARGET_FRAME_TIME("frameTime", "16.666"),
+        MAX_JANK_RATE("jankRate", "0.0"),
+        MAX_LOAD_TIME("loadTime", "10000"),
+
+        // Apk info
+        FILE_NAME("fileName", null),
+        PACKAGE_NAME("packageName", null),
+        LAYER_NAME("layerName", null),
+        SCRIPT("script", null),
+        ARGS("args", null),
+        LOAD_TIME("loadTime", "10000"),
+        RUN_TIME("runTime", "10000"),
+        EXPECT_INTENTS("expectIntents", "false");
 
         private String mTag;
+        private String mDefaultValue;
 
-        Field(String tag) {
+        Field(String tag, String defaultValue) {
             mTag = tag;
+            mDefaultValue = defaultValue;
         }
 
         public String getTag() {
             return mTag;
+        }
+
+        public String getDefaultValue() {
+            return mDefaultValue;
         }
     }
 
     public ApkListXmlParser() {
     }
 
-    public List<ApkInfo> parse(File file)
+    public GameCoreConfiguration parse(File file)
             throws IOException, ParserConfigurationException, SAXException {
         try (InputStream is = new FileInputStream(file)) {
             return parse(is);
         }
     }
 
-    public List<ApkInfo> parse(InputStream inputStream)
-            throws IOException, ParserConfigurationException, SAXException {
-        // TODO: Need error checking.
+    public GameCoreConfiguration parse(InputStream inputStream)
+            throws ParserConfigurationException, IOException, SAXException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder db = dbf.newDocumentBuilder();
         Document doc = db.parse(inputStream);
         doc.getDocumentElement().normalize();
-        NodeList nodes = doc.getElementsByTagName("apk");
-        List<ApkInfo> apks = new ArrayList<>();
-        for (int i = 0; i < nodes.getLength(); i++) {
-            Node node = nodes.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                Element element = (Element) node;
-                apks.add(createApkInfo(element));
+
+        List<CertificationRequirements> requirements = parseList(
+                doc.getDocumentElement(),
+                "certification",
+                this::createCertificationRequirements);
+        if (requirements == null) {
+            requirements = Collections.emptyList();
+        }
+        List<ApkInfo> apkInfo =
+                parseList(doc.getDocumentElement(), "apk-info", this::createApkInfo);
+        return new GameCoreConfiguration(requirements, apkInfo);
+    }
+
+    private <T> List<T> parseList(Element element, String tagName, Function<Element, T> parser) {
+        NodeList nodeList = element.getElementsByTagName(tagName);
+        if (nodeList.getLength() != 1) {
+            return null;
+        }
+        List<T> result = new ArrayList<>();
+        NodeList children = nodeList.item(0).getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                result.add(parser.apply((Element) child));
             }
         }
-        return apks;
+        return result;
+    }
+
+    private CertificationRequirements createCertificationRequirements(Element element) {
+        if (!element.getTagName().equals("apk")) {
+            throw new RuntimeException(
+                    "Unexpected tag <"
+                            + element.getNodeName()
+                            + "> in <certification>.  Only <apk> is allowed." );
+        }
+        return new CertificationRequirements(
+                getElement(element, Field.NAME),
+                Float.parseFloat(getElement(element, Field.TARGET_FRAME_TIME)),
+                Float.parseFloat(getElement(element, Field.MAX_JANK_RATE)),
+                Integer.parseInt(getElement(element, Field.MAX_LOAD_TIME)));
     }
 
     private ApkInfo createApkInfo(Element element) {
-        List<ApkInfo.Argument> args = new ArrayList<>();
-        NodeList argsNodeList = element.getElementsByTagName(Field.ARGS.getTag());
-        if (argsNodeList.getLength() > 0) {
-            NodeList children = argsNodeList.item(0).getChildNodes();
-            for (int j = 0; j < children.getLength(); j++) {
-                Node argNode = children.item(j);
-                if (argNode.getNodeType() != Node.ELEMENT_NODE) {
-                    continue;
-                }
-                Element argElement = (Element) argNode;
-                String type = argElement.getAttribute("type");
-                if (type == null || type.isEmpty()) {
-                    type = "STRING";
-                }
-                args.add(new ApkInfo.Argument(
-                        argElement.getTagName(),
-                        argElement.getTextContent(),
-                        ApkInfo.Argument.Type.valueOf(type.toUpperCase(Locale.US))));
-            }
+        if (!element.getTagName().equals("apk")) {
+            throw new RuntimeException(
+                    "Unexpected tag <"
+                            + element.getNodeName()
+                            + "> in <apk-info>.  Only <apk> is allowed." );
+        }
+
+        List<ApkInfo.Argument> args = parseList(element, Field.ARGS.getTag(), this::createArgument);
+        if (args == null) {
+            args = Collections.emptyList();
         }
 
         return new ApkInfo(
-                getElement(element, Field.NAME, null),
-                getElement(element, Field.FILE_NAME, null),
-                getElement(element, Field.PACKAGE_NAME, null),
-                getElement(element, Field.LAYER_NAME, null),
-                getElement(element, Field.SCRIPT, null),
+                getElement(element, Field.NAME),
+                getElement(element, Field.FILE_NAME),
+                getElement(element, Field.PACKAGE_NAME),
+                getElement(element, Field.LAYER_NAME),
+                getElement(element, Field.SCRIPT),
                 args,
-                Integer.parseInt(getElement(element, Field.LOAD_TIME, "10000")),
-                Integer.parseInt(getElement(element, Field.RUN_TIME, "10000")),
-                Boolean.parseBoolean(getElement(element, Field.EXPECT_INTENTS, "false"))
+                Integer.parseInt(getElement(element, Field.LOAD_TIME)),
+                Integer.parseInt(getElement(element, Field.RUN_TIME)),
+                Boolean.parseBoolean(getElement(element, Field.EXPECT_INTENTS))
                 );
     }
 
-    private String getElement(Element element, Field field, String defaultValue) {
+    private ApkInfo.Argument createArgument(Element element) {
+        String type = element.getAttribute("type");
+        if (type == null || type.isEmpty()) {
+            type = "STRING";
+        }
+        return new ApkInfo.Argument(
+                element.getTagName(),
+                element.getTextContent(),
+                ApkInfo.Argument.Type.valueOf(type.toUpperCase(Locale.US)));
+    }
+
+    private String getElement(Element element, Field field) {
         NodeList elements = element.getElementsByTagName(field.getTag());
         if (elements.getLength() > 0) {
             return elements.item(0).getTextContent();
         } else {
-            return defaultValue;
+            return field.getDefaultValue();
         }
     }
 }

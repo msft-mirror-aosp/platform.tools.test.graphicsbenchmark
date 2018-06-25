@@ -37,7 +37,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := GameQualificationHostTest
 LOCAL_MODULE_TAGS := tests
 LOCAL_SRC_FILES := $(call all-java-files-under, test)
-LOCAL_JAVA_LIBRARIES := GameQualificationHost junit-host tradefed
+LOCAL_JAVA_LIBRARIES := GameQualificationHost GameQualificationHelperHost junit-host tradefed
 LOCAL_COMPATIBILITY_SUITE := general-tests
 
 include $(BUILD_HOST_JAVA_LIBRARY)

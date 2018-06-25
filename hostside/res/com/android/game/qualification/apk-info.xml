@@ -1,10 +1,22 @@
 <?xml version="1.0"?>
-<apk-info>
-    <apk>
-        <name>sample</name>
-        <fileName>GameQualificationSampleApp.apk</fileName>
-        <packageName>com.android.game.qualification.example</packageName>
-        <layerName>SurfaceView - com.android.game.qualification.example/com.android.game.qualification.example.SampleActivity#0</layerName>
-        <expectIntents>true</expectIntents>
-    </apk>
-</apk-info>
+
+<gamecore>
+    <certification>
+        <apk>
+            <name>sample</name>
+            <frameTime>16.666</frameTime>
+            <jankRate>0.0</jankRate>
+            <loadTime>3000</loadTime>
+        </apk>
+    </certification>
+
+    <apk-info>
+        <apk>
+            <name>sample</name>
+            <fileName>GameQualificationSampleApp.apk</fileName>
+            <packageName>com.android.game.qualification.example</packageName>
+            <layerName>SurfaceView - com.android.game.qualification.example/com.android.game.qualification.example.SampleActivity#0</layerName>
+            <expectIntents>true</expectIntents>
+        </apk>
+    </apk-info>
+</gamecore>

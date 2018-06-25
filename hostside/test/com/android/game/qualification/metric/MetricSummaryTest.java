@@ -1,11 +1,28 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.game.qualification.metric;
-
 
 import static com.android.game.qualification.metric.MetricSummary.TimeType.PRESENT;
 import static com.android.game.qualification.metric.MetricSummary.TimeType.READY;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
+import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.metric.MetricSummary.LoopSummary;
 import com.android.tradefed.device.metric.DeviceMetricData;
 import com.android.tradefed.invoker.InvocationContext;
@@ -15,12 +32,19 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 @RunWith(JUnit4.class)
 public class MetricSummaryTest {
 
-    private final double EPSILON = Math.ulp(1e9);
+    private static final double EPSILON = Math.ulp(1e9);
+    private static final CertificationRequirements TEST_REQUIREMENTS =
+            new CertificationRequirements(
+                    "foo",
+                    17,
+                    0.0f,
+                    10000);
 
     @Test
     public void testBasicLoop() {
@@ -76,23 +100,26 @@ public class MetricSummaryTest {
 
     @Test
     public void testConversion() {
-        MetricSummary summary = new MetricSummary();
-        summary.beginLoop();
-        summary.addFrameTime(PRESENT, 1);
-        summary.addFrameTime(PRESENT, 2);
-        summary.addFrameTime(PRESENT, 3);
-        summary.addFrameTime(READY, 10);
-        summary.addFrameTime(READY, 10);
-        summary.addFrameTime(READY, 10);
-        summary.endLoop();
-        summary.beginLoop();
-        summary.addFrameTime(PRESENT, 4);
-        summary.addFrameTime(PRESENT, 5);
-        summary.addFrameTime(READY, 20);
-        summary.addFrameTime(READY, 20);
-        summary.endLoop();
 
-        assertEquals(3, summary.getAvgFrameTime(), EPSILON);
+        MetricSummary.Builder builder = new MetricSummary.Builder(TEST_REQUIREMENTS, 16666666);
+        builder.beginLoop();
+        builder.addFrameTime(PRESENT, 1);
+        builder.addFrameTime(PRESENT, 2);
+        builder.addFrameTime(PRESENT, 3);
+        builder.addFrameTime(READY, 10);
+        builder.addFrameTime(READY, 10);
+        builder.addFrameTime(READY, 10);
+        builder.endLoop();
+        builder.beginLoop();
+        builder.addFrameTime(PRESENT, 4);
+        builder.addFrameTime(PRESENT, 5);
+        builder.addFrameTime(READY, 20);
+        builder.addFrameTime(READY, 20);
+        builder.endLoop();
+
+        MetricSummary summary = builder.build();
+
+        assertEquals(0.0, summary.getJankRate(), EPSILON);
 
         DeviceMetricData runData = new DeviceMetricData(new InvocationContext());
         summary.addToMetricData(runData);
@@ -100,7 +127,8 @@ public class MetricSummaryTest {
         runData.addToMetrics(metrics);
 
         MetricSummary result = MetricSummary.parseRunMetrics(new InvocationContext(), metrics);
+        assertNotNull(result);
         assertEquals(summary, result);
-        assertEquals(summary.getAvgFrameTime(), result.getAvgFrameTime(), EPSILON);
+        assertEquals(summary.getJankRate(), result.getJankRate(), EPSILON);
     }
 }
