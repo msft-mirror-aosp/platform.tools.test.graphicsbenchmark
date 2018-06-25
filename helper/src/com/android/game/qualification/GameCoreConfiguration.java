@@ -53,6 +53,7 @@ public class GameCoreConfiguration {
                 requirementNames.stream()
                         .filter((it) -> !apkNames.contains(it))
                         .collect(Collectors.toList());
+
         if (!missingApks.isEmpty()) {
             throw new IllegalArgumentException(
                     "<certification> contains the following apk that does not exists in "

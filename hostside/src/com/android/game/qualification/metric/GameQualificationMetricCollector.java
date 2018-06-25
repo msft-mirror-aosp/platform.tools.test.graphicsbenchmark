@@ -362,6 +362,21 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
 
                     long startTime = 0L;
                     int runIndex = 0;
+
+                    // Calculate load time.
+                    long appLaunchedTime = 0;
+                    for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
+                        if (e.getType() == ResultDataProto.Event.Type.APP_LAUNCH) {
+                             appLaunchedTime = e.getTimestamp();
+                             continue;
+                        }
+                        // Get the first START_LOOP.  Assume START_LOOP is in chronological order
+                        // and comes after APP_LAUNCH.
+                        if (e.getType() == ResultDataProto.Event.Type.START_LOOP) {
+                            summaryBuilder.setLoadTimeMs(e.getTimestamp() - appLaunchedTime);
+                            break;
+                        }
+                    }
                     for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
                         if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
                             continue;

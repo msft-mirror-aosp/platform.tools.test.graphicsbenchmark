@@ -6,7 +6,7 @@
             <name>sample</name>
             <frameTime>16.666</frameTime>
             <jankRate>0.0</jankRate>
-            <loadTime>3000</loadTime>
+            <loadTime>6500</loadTime>
         </apk>
     </certification>
 

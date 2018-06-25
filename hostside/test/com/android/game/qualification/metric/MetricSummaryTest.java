@@ -116,10 +116,12 @@ public class MetricSummaryTest {
         builder.addFrameTime(READY, 20);
         builder.addFrameTime(READY, 20);
         builder.endLoop();
+        builder.setLoadTimeMs(42);
 
         MetricSummary summary = builder.build();
 
         assertEquals(0.0, summary.getJankRate(), EPSILON);
+        assertEquals(42, summary.getLoadTimeMs());
 
         DeviceMetricData runData = new DeviceMetricData(new InvocationContext());
         summary.addToMetricData(runData);

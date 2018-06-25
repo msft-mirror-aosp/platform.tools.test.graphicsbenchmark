@@ -225,6 +225,23 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
                     text.append(requirements.getJankRate());
                     text.append("\n");
                 }
+                if (requirements.getLoadTime() >= 0) {
+                    if (metrics.getLoadTimeMs() == -1) {
+                        success = false;
+                        text.append("Unable to determine load time for ");
+                        text.append(testId.getTestName());
+                        text.append(".  Expected START_LOOP Intent was not received.\n");
+                    } else if (metrics.getLoadTimeMs() > requirements.getLoadTime()) {
+                        success = false;
+                        text.append("Load time for ");
+                        text.append(testId.getTestName());
+                        text.append(" is too high, actual: ");
+                        text.append(metrics.getLoadTimeMs());
+                        text.append(" ms, target: ");
+                        text.append(requirements.getLoadTime());
+                        text.append(" ms\n");
+                    }
+                }
             }
         }
         return new Report(success, text.toString());
