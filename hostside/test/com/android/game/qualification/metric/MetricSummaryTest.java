@@ -21,7 +21,6 @@ import static com.android.game.qualification.metric.MetricSummary.TimeType.READY
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.android.game.qualification.ApkInfo;
 import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.metric.MetricSummary.LoopSummary;
 import com.android.tradefed.device.metric.DeviceMetricData;
@@ -32,7 +31,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 
 @RunWith(JUnit4.class)
@@ -42,7 +40,7 @@ public class MetricSummaryTest {
     private static final CertificationRequirements TEST_REQUIREMENTS =
             new CertificationRequirements(
                     "foo",
-                    17,
+                    500,  /* 500ms */
                     0.0f,
                     10000);
 
@@ -101,7 +99,7 @@ public class MetricSummaryTest {
     @Test
     public void testConversion() {
 
-        MetricSummary.Builder builder = new MetricSummary.Builder(TEST_REQUIREMENTS, 16666666);
+        MetricSummary.Builder builder = new MetricSummary.Builder(TEST_REQUIREMENTS, 500_000_000);
         builder.beginLoop();
         builder.addFrameTime(PRESENT, 1);
         builder.addFrameTime(PRESENT, 2);
@@ -111,8 +109,9 @@ public class MetricSummaryTest {
         builder.addFrameTime(READY, 10);
         builder.endLoop();
         builder.beginLoop();
-        builder.addFrameTime(PRESENT, 4);
-        builder.addFrameTime(PRESENT, 5);
+        builder.addFrameTime(PRESENT, 749_999_999);
+        builder.addFrameTime(PRESENT, 750_000_000);
+        builder.addFrameTime(PRESENT, 499_999_995);
         builder.addFrameTime(READY, 20);
         builder.addFrameTime(READY, 20);
         builder.endLoop();
@@ -120,7 +119,7 @@ public class MetricSummaryTest {
 
         MetricSummary summary = builder.build();
 
-        assertEquals(0.0, summary.getJankRate(), EPSILON);
+        assertEquals(0.5f, summary.getJankRate(), EPSILON);
         assertEquals(42, summary.getLoadTimeMs());
 
         DeviceMetricData runData = new DeviceMetricData(new InvocationContext());

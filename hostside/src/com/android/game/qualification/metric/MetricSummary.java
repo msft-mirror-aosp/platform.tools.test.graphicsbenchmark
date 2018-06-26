@@ -263,16 +263,17 @@ public class MetricSummary {
     public static class Builder {
         @Nullable
         private CertificationRequirements mRequirements;
-        private double missCount = 0;
+        private double jankScore = 0;
         private int numFrames = 0;
-        private long mVSyncPeriod;
+        private long mVSyncPeriodNs;
         private int loopCount = 0;
         private long loadTimeMs = -1;
+        private long totalTimeNs = 0;
         private Map<TimeType, List<LoopSummary>> summaries = new LinkedHashMap<>();
 
-        public Builder(@Nullable CertificationRequirements requirements, long vSyncPeriod) {
+        public Builder(@Nullable CertificationRequirements requirements, long vSyncPeriodNs) {
             mRequirements = requirements;
-            mVSyncPeriod = vSyncPeriod;
+            mVSyncPeriodNs = vSyncPeriodNs;
             for (TimeType type : TimeType.values()) {
                 summaries.put(type, new ArrayList<>());
             }
@@ -288,21 +289,22 @@ public class MetricSummary {
             this.loadTimeMs = loadTimeMs;
         }
 
-        public void addFrameTime(TimeType type, long frameTime) {
+        public void addFrameTime(TimeType type, long frameTimeNs) {
             if (type == TimeType.PRESENT) {
                 numFrames++;
+                totalTimeNs += frameTimeNs;
                 if (mRequirements != null) {
                     float targetFrameTime = msToNs(mRequirements.getFrameTime());
-                    if (frameTime > targetFrameTime) {
-                        double score =
-                                Math.floor((frameTime - targetFrameTime) / (mVSyncPeriod * 0.5))
-                                        * 0.5;
-                        missCount += score;
+                    long roundedFrameTimeNs =
+                            Math.round(frameTimeNs / (double)mVSyncPeriodNs) * mVSyncPeriodNs;
+                    if (roundedFrameTimeNs > targetFrameTime) {
+                        double score = (roundedFrameTimeNs - targetFrameTime) / targetFrameTime;
+                        jankScore += score;
                     }
                 }
             }
             LoopSummary summary = getLatestSummary(type);
-            summary.addFrameTime(frameTime);
+            summary.addFrameTime(frameTimeNs);
         }
 
         public void beginLoop() {
@@ -321,7 +323,7 @@ public class MetricSummary {
         public MetricSummary build() {
             return new MetricSummary(
                     loopCount,
-                    missCount / numFrames,
+                    jankScore * 1000000000 / totalTimeNs,  /* jank rate per second */
                     loadTimeMs,
                     summaries);
         }

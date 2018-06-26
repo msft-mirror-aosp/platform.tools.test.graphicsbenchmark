@@ -4,7 +4,7 @@
     <certification>
         <apk>
             <name>sample</name>
-            <frameTime>16.666</frameTime>
+            <frameTime>16.667</frameTime>
             <jankRate>0.0</jankRate>
             <loadTime>6500</loadTime>
         </apk>
