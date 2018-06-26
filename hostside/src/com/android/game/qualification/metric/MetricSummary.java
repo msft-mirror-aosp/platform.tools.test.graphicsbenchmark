@@ -15,7 +15,9 @@
  */
 package com.android.game.qualification.metric;
 
+import com.android.annotations.Nullable;
 import com.android.annotations.VisibleForTesting;
+import com.android.game.qualification.CertificationRequirements;
 import com.android.tradefed.device.metric.DeviceMetricData;
 import com.android.tradefed.invoker.IInvocationContext;
 import com.android.tradefed.metrics.proto.MetricMeasurement.DataType;
@@ -28,6 +30,7 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,102 +44,46 @@ public class MetricSummary {
     public enum TimeType {
         PRESENT,
         READY
-    };
-    private int loopCount = 0;
-    private Map<TimeType, List<LoopSummary>> summaries = new HashMap<>();
+    }
 
+    private int loopCount;
+    private double jankRate;
+    private Map<TimeType, List<LoopSummary>> summaries;
+
+    private MetricSummary(
+            int loopCount,
+            double jankRate,
+            Map<TimeType, List<LoopSummary>> summaries) {
+        this.jankRate = jankRate;
+        this.loopCount = loopCount;
+        this.summaries = summaries;
+    }
+
+    @Nullable
     public static MetricSummary parseRunMetrics(
             IInvocationContext context, HashMap<String, Metric> metrics) {
-        MetricSummary result = new MetricSummary();
-        result.loopCount = (int)metrics.get("loop_count").getMeasurements().getSingleInt();
-        for (int i = 0; i < result.loopCount; i++) {
-            for (TimeType type : TimeType.values()) {
-                result.summaries.get(type).add(new LoopSummary());
-                result.getLastestSummary(type).parseRunMetrics(context, type, i, metrics);
-            }
+        int loopCount = (int) metrics.get("loop_count").getMeasurements().getSingleInt();
+        if (loopCount == 0) {
+            return null;
         }
-        return result;
-    }
 
-
-    public MetricSummary() {
+        Map<TimeType, List<LoopSummary>> summaries = new LinkedHashMap<>();
         for (TimeType type : TimeType.values()) {
             summaries.put(type, new ArrayList<>());
+            for (int i = 0; i < loopCount; i++) {
+                LoopSummary loopSummary = new LoopSummary();
+                loopSummary.parseRunMetrics(context, type, i, metrics);
+                summaries.get(type).add(loopSummary);
+            }
         }
+        return new MetricSummary(
+                loopCount,
+                metrics.get("jank_rate").getMeasurements().getSingleDouble(),
+                summaries);
     }
 
-    private LoopSummary getLastestSummary(TimeType type) {
-        Preconditions.checkState(loopCount > 0, "First loop has not been started.");
-        List<LoopSummary> list = summaries.get(type);
-        return list.get(list.size() - 1);
-    }
-
-    public void addFrameTime(TimeType type, long frameTime) {
-        LoopSummary summary = getLastestSummary(type);
-        summary.addFrameTime(frameTime);
-    }
-    public void beginLoop() {
-        loopCount++;
-        for (TimeType type : TimeType.values()) {
-            summaries.get(type).add(new LoopSummary());
-        }
-    }
-
-    public void endLoop() {
-        for (TimeType type : TimeType.values()) {
-            getLastestSummary(type).processFrameTimes();
-        }
-    }
-
-    public double getAvgFrameTime() {
-        double totalTime = 0;
-        int numFrames = 0;
-        for (LoopSummary summary : summaries.get(TimeType.PRESENT)) {
-            totalTime += summary.getAvgFrameTime() * summary.getCount();
-            numFrames += summary.getCount();
-        }
-        return totalTime / numFrames;
-    }
-
-    private Metric.Builder getFpsMetric(double value) {
-        return Metric.newBuilder()
-                .setUnit("fps")
-                .setDirection(Directionality.UP_BETTER)
-                .setType(DataType.PROCESSED)
-                .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
-    }
-
-
-    private Metric.Builder getFrameTimeMetric(long value) {
-        return Metric.newBuilder()
-                .setUnit("ns")
-                .setDirection(Directionality.DOWN_BETTER)
-                .setType(DataType.PROCESSED)
-                .setMeasurements(Measurements.newBuilder().setSingleInt(value));
-    }
-
-    private Metric.Builder getFrameTimeMetric(double value) {
-        return Metric.newBuilder()
-                .setUnit("ns")
-                .setDirection(Directionality.DOWN_BETTER)
-                .setType(DataType.PROCESSED)
-                .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
-    }
-
-    private static String getActualMetricKey(
-            IInvocationContext context, TimeType type, int loopIndex, String label) {
-        // DeviceMetricData automatically add the deviceName to the metric key if there are more
-        // than one devices.  We don't really want or care about the device in the metric data, but
-        // we need to get the actual key that was added in order to parse it correctly.
-        if (context.getDevices().size() > 1) {
-            String deviceName = context.getDeviceName(context.getDevices().get(0));
-            return String.format("{%s}:%s", deviceName, getMetricKey(type, loopIndex, label));
-        }
-        return getMetricKey(type, loopIndex, label);
-    }
-
-    private static String getMetricKey(TimeType type, int loopIndex, String label) {
-        return "run_" + loopIndex + "." + type.name().toLowerCase(Locale.US) + "_" + label;
+    public double getJankRate() {
+        return jankRate;
     }
 
     public void addToMetricData(DeviceMetricData runData) {
@@ -145,6 +92,12 @@ public class MetricSummary {
                 Metric.newBuilder()
                         .setType(DataType.PROCESSED)
                         .setMeasurements(Measurements.newBuilder().setSingleInt(loopCount)));
+        runData.addMetric(
+                "jank_rate",
+                Metric.newBuilder()
+                        .setType(DataType.PROCESSED)
+                        .setMeasurements(Measurements.newBuilder().setSingleDouble(getJankRate())));
+
         for (int i = 0; i < loopCount; i++) {
             for (TimeType type : TimeType.values()) {
                 LoopSummary summary = summaries.get(type).get(i);
@@ -187,18 +140,61 @@ public class MetricSummary {
         }
     }
 
+    private Metric.Builder getFpsMetric(double value) {
+        return Metric.newBuilder()
+                .setUnit("fps")
+                .setDirection(Directionality.UP_BETTER)
+                .setType(DataType.PROCESSED)
+                .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
+    }
+
+
+    private Metric.Builder getFrameTimeMetric(long value) {
+        return Metric.newBuilder()
+                .setUnit("ns")
+                .setDirection(Directionality.DOWN_BETTER)
+                .setType(DataType.PROCESSED)
+                .setMeasurements(Measurements.newBuilder().setSingleInt(value));
+    }
+
+    private Metric.Builder getFrameTimeMetric(double value) {
+        return Metric.newBuilder()
+                .setUnit("ns")
+                .setDirection(Directionality.DOWN_BETTER)
+                .setType(DataType.PROCESSED)
+                .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
+    }
+
+
+    private static String getActualMetricKey(
+            IInvocationContext context, TimeType type, int loopIndex, String label) {
+        // DeviceMetricData automatically add the deviceName to the metric key if there are more
+        // than one devices.  We don't really want or care about the device in the metric data, but
+        // we need to get the actual key that was added in order to parse it correctly.
+        if (context.getDevices().size() > 1) {
+            String deviceName = context.getDeviceName(context.getDevices().get(0));
+            return String.format("{%s}:%s", deviceName, getMetricKey(type, loopIndex, label));
+        }
+        return getMetricKey(type, loopIndex, label);
+    }
+
+    private static String getMetricKey(TimeType type, int loopIndex, String label) {
+        return "run_" + loopIndex + "." + type.name().toLowerCase(Locale.US) + "_" + label;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MetricSummary summary = (MetricSummary) o;
         return loopCount == summary.loopCount &&
+                jankRate == summary.jankRate &&
                 Objects.equals(summaries, summary.summaries);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(loopCount, summaries);
+        return Objects.hash(loopCount, jankRate, summaries);
     }
 
     public String toString() {
@@ -206,7 +202,7 @@ public class MetricSummary {
         // Report primary metrics.
         sb.append("Summary\n");
         sb.append("-------\n");
-        sb.append(String.format("Average Frame Time: %.3f ms\n\n", nsToMs(getAvgFrameTime())));
+        sb.append(String.format("'Jank' rate: %.3f\n\n", getJankRate()));
 
         // Report secondary metrics.
         sb.append("Details\n");
@@ -228,6 +224,10 @@ public class MetricSummary {
         return sb.toString();
     }
 
+    private static float msToNs(float value) {
+        return value * 1e6f;
+    }
+
     private static double nsToMs(long value) {
         return value / 1e6;
     }
@@ -236,6 +236,67 @@ public class MetricSummary {
         return value / 1e6;
     }
 
+
+    public static class Builder {
+        @Nullable
+        private CertificationRequirements mRequirements;
+        private double missCount = 0;
+        private int numFrames = 0;
+        private long mVSyncPeriod;
+        private int loopCount = 0;
+        private Map<TimeType, List<LoopSummary>> summaries = new LinkedHashMap<>();
+
+        public Builder(@Nullable CertificationRequirements requirements, long vSyncPeriod) {
+            mRequirements = requirements;
+            mVSyncPeriod = vSyncPeriod;
+            for (TimeType type : TimeType.values()) {
+                summaries.put(type, new ArrayList<>());
+            }
+        }
+
+        private LoopSummary getLatestSummary(TimeType type) {
+            Preconditions.checkState(loopCount > 0, "First loop has not been started.");
+            List<LoopSummary> list = summaries.get(type);
+            return list.get(list.size() - 1);
+        }
+
+        public void addFrameTime(TimeType type, long frameTime) {
+            if (type == TimeType.PRESENT) {
+                numFrames++;
+                if (mRequirements != null) {
+                    float targetFrameTime = msToNs(mRequirements.getFrameTime());
+                    if (frameTime > targetFrameTime) {
+                        double score =
+                                Math.floor((frameTime - targetFrameTime) / (mVSyncPeriod * 0.5))
+                                        * 0.5;
+                        missCount += score;
+                    }
+                }
+            }
+            LoopSummary summary = getLatestSummary(type);
+            summary.addFrameTime(frameTime);
+        }
+
+        public void beginLoop() {
+            loopCount++;
+            for (TimeType type : TimeType.values()) {
+                summaries.get(type).add(new LoopSummary());
+            }
+        }
+
+        public void endLoop() {
+            for (TimeType type : TimeType.values()) {
+                getLatestSummary(type).processFrameTimes();
+            }
+        }
+
+        public MetricSummary build() {
+            return new MetricSummary(
+                    loopCount,
+                    missCount / numFrames,
+                    summaries);
+        }
+    }
 
     @VisibleForTesting
     static class LoopSummary {
@@ -417,6 +478,4 @@ public class MetricSummary {
                     nsToMs(get99thPercentile()));
         }
     }
-
-
 }

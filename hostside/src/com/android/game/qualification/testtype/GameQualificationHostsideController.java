@@ -20,10 +20,15 @@ import com.android.annotations.Nullable;
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.game.qualification.ApkInfo;
-import com.android.game.qualification.ApkListXmlParser;
+import com.android.game.qualification.GameCoreConfigurationXmlParser;
+import com.android.game.qualification.CertificationRequirements;
+import com.android.game.qualification.GameCoreConfiguration;
 import com.android.game.qualification.ResultData;
 import com.android.game.qualification.metric.GameQualificationMetricCollector;
 import com.android.game.qualification.proto.ResultDataProto;
+import com.android.game.qualification.reporter.GameQualificationResultReporter;
+import com.android.tradefed.config.IConfiguration;
+import com.android.tradefed.config.IConfigurationReceiver;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
@@ -67,7 +72,11 @@ import javax.imageio.ImageIO;
 import javax.xml.parsers.ParserConfigurationException;
 
 public class GameQualificationHostsideController implements
-        IShardableTest, IDeviceTest, IMetricCollectorReceiver, IInvocationContextReceiver {
+        IShardableTest,
+        IDeviceTest,
+        IMetricCollectorReceiver,
+        IInvocationContextReceiver,
+        IConfigurationReceiver {
     // Package and class of the device side test.
     private static final String PACKAGE = "com.android.game.qualification.device";
     private static final String CLASS = PACKAGE + ".GameQualificationTest";
@@ -77,9 +86,12 @@ public class GameQualificationHostsideController implements
     private static final long DEFAULT_MAX_TIMEOUT_TO_OUTPUT_MS = 10 * 60 * 1000L; //10min
 
     private ITestDevice mDevice;
+    private IConfiguration mConfiguration = null;
+    private GameCoreConfiguration mGameCoreConfiguration = null;
     private List<ApkInfo> mApks = null;
     private File mApkInfoFile;
     private Collection<IMetricCollector> mCollectors;
+    private GameQualificationResultReporter mResultReporter;
     private IInvocationContext mContext;
     @Nullable
     private GameQualificationMetricCollector mAGQMetricCollector = null;
@@ -130,6 +142,11 @@ public class GameQualificationHostsideController implements
     }
 
     @Override
+    public void setConfiguration(IConfiguration configuration) {
+        mConfiguration = configuration;
+    }
+
+    @Override
     public Collection<IRemoteTest> split(int shardCountHint) {
         initApkList();
         List<IRemoteTest> shards = new ArrayList<>();
@@ -154,6 +171,16 @@ public class GameQualificationHostsideController implements
 
     @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
+        // Find result reporter
+        if (mResultReporter == null) {
+            for (ITestInvocationListener testListener
+                    : mConfiguration.getTestInvocationListeners()) {
+                if (testListener instanceof GameQualificationResultReporter) {
+                    mResultReporter = (GameQualificationResultReporter) testListener;
+                }
+            }
+        }
+
         assert mAGQMetricCollector != null;
         for (IMetricCollector collector : mCollectors) {
             listener = collector.init(mContext, listener);
@@ -180,13 +207,20 @@ public class GameQualificationHostsideController implements
                 getDevice().installPackage(apkFile, true);
             }
             mAGQMetricCollector.setApkInfo(apk);
-
-            HashMap<String, MetricMeasurement.Metric> testMetrics = new HashMap<>();
+            mAGQMetricCollector.setCertificationRequirements(
+                    mGameCoreConfiguration.findCertificationRequirements(apk.getName()));
 
             // APK Test.
+            mAGQMetricCollector.enable();
             TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
+            if (mResultReporter != null) {
+                CertificationRequirements req =
+                        mGameCoreConfiguration.findCertificationRequirements(apk.getName());
+                if (req != null) {
+                    mResultReporter.putRequirements(identifier, req);
+                }
+            }
             listener.testStarted(identifier);
-
             boolean apkTestPassed = false;
             if (getDevice().getKeyguardState().isKeyguardShowing()) {
                 listener.testFailed(
@@ -219,8 +253,8 @@ public class GameQualificationHostsideController implements
                     apkTestPassed = true;
                 }
             }
-
-            listener.testEnded(identifier, testMetrics);
+            listener.testEnded(identifier, new HashMap<String, MetricMeasurement.Metric>());
+            mAGQMetricCollector.disable();
 
             if (apkTestPassed) {
                 // Screenshot test.
@@ -232,7 +266,8 @@ public class GameQualificationHostsideController implements
                 } catch (DeviceNotAvailableException e) {
                     listener.testFailed(screenshotTestId, e.getMessage());
                 }
-                listener.testEnded(screenshotTestId, testMetrics);
+                listener.testEnded(
+                        screenshotTestId, new HashMap<String, MetricMeasurement.Metric>());
             }
             getDevice().uninstallPackage(apk.getPackageName());
         }
@@ -346,9 +381,10 @@ public class GameQualificationHostsideController implements
                 }
             }
         }
-        ApkListXmlParser parser = new ApkListXmlParser();
+        GameCoreConfigurationXmlParser parser = new GameCoreConfigurationXmlParser();
         try {
-            mApks = parser.parse(mApkInfoFile);
+            mGameCoreConfiguration = parser.parse(mApkInfoFile);
+            mApks = mGameCoreConfiguration.getApkInfo();
         } catch (IOException | ParserConfigurationException | SAXException e) {
             throw new RuntimeException(e);
         }

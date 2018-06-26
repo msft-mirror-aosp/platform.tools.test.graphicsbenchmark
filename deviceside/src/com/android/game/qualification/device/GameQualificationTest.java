@@ -27,7 +27,7 @@ import android.support.test.InstrumentationRegistry;
 import android.util.Log;
 
 import com.android.game.qualification.ApkInfo;
-import com.android.game.qualification.ApkListXmlParser;
+import com.android.game.qualification.GameCoreConfigurationXmlParser;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,8 +53,8 @@ public class GameQualificationTest {
     public static Iterable<Object[]> data()
             throws ParserConfigurationException, SAXException, IOException {
         List<Object[]> params = new ArrayList<>();
-        ApkListXmlParser parser = new ApkListXmlParser();
-        List<ApkInfo> apks = parser.parse(new File(ApkInfo.APK_LIST_LOCATION));
+        GameCoreConfigurationXmlParser parser = new GameCoreConfigurationXmlParser();
+        List<ApkInfo> apks = parser.parse(new File(ApkInfo.APK_LIST_LOCATION)).getApkInfo();
         for (ApkInfo apk : apks) {
             params.add(new Object[] { apk.getName(), apk });
         }
