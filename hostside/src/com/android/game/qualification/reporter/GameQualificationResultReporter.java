@@ -44,16 +44,23 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GameQualificationResultReporter extends CollectingTestListener implements ILogSaverListener {
     private static final String TAG = GameQualificationResultReporter.class.getSimpleName();
 
-    @Option(name = "suppress-passed-tests", description = "For functional tests, ommit summary for "
+    @Option(name = "suppress-passed-tests", description = "For functional tests, omit summary for "
             + "passing tests, only print failed and ignored ones")
     private boolean mSuppressPassedTest = false;
 
     private Map<TestDescription, MetricSummary> summaries = new ConcurrentHashMap<>();
     private Map<TestDescription, CertificationRequirements> mRequirements = new ConcurrentHashMap<>();
+    private List<Throwable> invocationFailures = new ArrayList<>();
     private List<LogFile> mLogFiles = new ArrayList<>();
 
     public void putRequirements(TestDescription testId, CertificationRequirements requirements) {
         mRequirements.put(testId, requirements);
+    }
+
+    @Override
+    public void invocationFailed(Throwable cause) {
+        super.invocationFailed(cause);
+        invocationFailures.add(cause);
     }
 
     /**
@@ -112,6 +119,17 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
                 sb.append(String.format("  %s\n", url != null ? url : logFile.getPath()));
             }
             sb.append("\n");
+        }
+
+        // Print invocation failures.
+        if (!invocationFailures.isEmpty()) {
+            sb.append("Unable to certify device.  Invocation failed:\n");
+            for (Throwable t : invocationFailures) {
+                sb.append("  ");
+                sb.append(t.getMessage());
+                sb.append("\n");
+            }
+            return sb.toString();
         }
 
         // Print out device test results.
