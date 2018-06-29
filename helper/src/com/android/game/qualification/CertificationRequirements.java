@@ -56,7 +56,8 @@ public class CertificationRequirements {
     }
 
     /**
-     * (Optional) Maximum load time in milliseconds. [default: 10000]
+     * (Optional) Maximum load time in milliseconds. Load time of -1 implies, it is not considered
+     * for certification. [default: -1]
      */
     public int getLoadTime() {
         return mLoadTime;

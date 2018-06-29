@@ -46,7 +46,7 @@ public class GameCoreConfigurationXmlParser {
         // Certification requirements
         TARGET_FRAME_TIME("frameTime", "16.666"),
         MAX_JANK_RATE("jankRate", "0.0"),
-        MAX_LOAD_TIME("loadTime", "10000"),
+        MAX_LOAD_TIME("loadTime", "-1"),
 
         // Apk info
         FILE_NAME("fileName", null),
