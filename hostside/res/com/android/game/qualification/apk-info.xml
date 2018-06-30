@@ -15,7 +15,7 @@
             <name>sample</name>
             <fileName>GameQualificationSampleApp.apk</fileName>
             <packageName>com.android.game.qualification.example</packageName>
-            <layerName>SurfaceView - com.android.game.qualification.example/com.android.game.qualification.example.SampleActivity#0</layerName>
+            <layerName>^SurfaceView - com.android.game.qualification.example/com.android.game.qualification.example.SampleActivity.*#0$</layerName>
             <expectIntents>true</expectIntents>
         </apk>
     </apk-info>
