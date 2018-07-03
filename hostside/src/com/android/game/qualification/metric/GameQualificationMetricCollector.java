@@ -48,8 +48,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
@@ -443,7 +443,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     void printHistogram(Collection<Long> frameTimes, int runIndex) {
         try(ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Histogram histogram =
-                    new Histogram(frameTimes, mVSyncPeriod / 2L, null, 5 * mVSyncPeriod);
+                    new Histogram(frameTimes, mVSyncPeriod / 30L, null, 5 * mVSyncPeriod);
             histogram.plotAscii(output, 100);
             try(InputStreamSource source = new ByteArrayInputStreamSource(output.toByteArray())) {
                 testLog(
