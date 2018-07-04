@@ -306,7 +306,7 @@ public class GameQualificationHostsideController implements
             pb.redirectErrorStream(true);
 
             Process p = pb.start();
-            boolean finished = p.waitFor(5, TimeUnit.MINUTES);
+            boolean finished = p.waitFor(30, TimeUnit.MINUTES);
             if (!finished || p.exitValue() != 0) {
                 ByteArrayOutputStream os = new ByteArrayOutputStream();
                 ByteStreams.copy(p.getInputStream(), os);
