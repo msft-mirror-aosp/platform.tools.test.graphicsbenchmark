@@ -68,6 +68,7 @@ public class GameCoreConfigurationXmlParserTest {
             assertEquals("foo", apk.getName());
             assertEquals("foo.apk", apk.getFileName());
             assertEquals("com.foo.test", apk.getPackageName());
+            assertEquals(null, apk.getActivityName());
             assertEquals(null, apk.getScript());
             assertEquals(10000, apk.getLoadTime());
             assertEquals(10000, apk.getRunTime());
@@ -85,6 +86,7 @@ public class GameCoreConfigurationXmlParserTest {
                         + "            <name>foo</name>\n"
                         + "            <fileName>foo.apk</fileName>\n"
                         + "            <packageName>com.foo.test</packageName>\n"
+                        + "            <activityName>com.foo.test.MyActivity</activityName>\n"
                         + "            <layerName>com.foo.test</layerName>\n"
                         + "            <script>script.sh</script>\n"
                         + "            <loadTime>21</loadTime>\n"
@@ -98,6 +100,7 @@ public class GameCoreConfigurationXmlParserTest {
             assertEquals("foo", apk.getName());
             assertEquals("foo.apk", apk.getFileName());
             assertEquals("com.foo.test", apk.getPackageName());
+            assertEquals("com.foo.test.MyActivity", apk.getActivityName());
             assertEquals("script.sh", apk.getScript());
             assertEquals(21, apk.getLoadTime());
             assertEquals(42, apk.getRunTime());

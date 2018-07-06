@@ -51,6 +51,7 @@ public class GameCoreConfigurationXmlParser {
         // Apk info
         FILE_NAME("fileName", null),
         PACKAGE_NAME("packageName", null),
+        ACTIVITY_NAME("activityName", null),
         LAYER_NAME("layerName", null),
         SCRIPT("script", null),
         ARGS("args", null),
@@ -151,6 +152,7 @@ public class GameCoreConfigurationXmlParser {
                 getElement(element, Field.NAME),
                 getElement(element, Field.FILE_NAME),
                 getElement(element, Field.PACKAGE_NAME),
+                getElement(element, Field.ACTIVITY_NAME),
                 getElement(element, Field.LAYER_NAME),
                 getElement(element, Field.SCRIPT),
                 args,
