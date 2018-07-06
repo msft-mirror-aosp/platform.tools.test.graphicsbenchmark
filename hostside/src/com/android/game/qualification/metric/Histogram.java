@@ -17,13 +17,15 @@ package com.android.game.qualification.metric;
 
 import com.android.annotations.VisibleForTesting;
 
+import com.google.common.collect.ImmutableSet;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -58,10 +60,19 @@ public class Histogram {
 
         for (Long value : data) {
             long bucket = findBucket(value);
-            if (mCounts.containsKey(bucket)) {
-                mCounts.put(bucket, mCounts.get(bucket) + 1);
+            mCounts.put(bucket, mCounts.getOrDefault(bucket, 0) + 1);
+        }
+
+        // Add some buckets for padding to clarify the range of value represented by each bar of the
+        // histogram.
+        Set<Long> keys = ImmutableSet.copyOf(mCounts.keySet());
+        for (long bucket : keys) {
+            if (bucket == Long.MIN_VALUE) {
+                mCounts.putIfAbsent(mMinCutoff, 0);
+            } else if (mMaxCutoff != null && bucket > mMaxCutoff - bucketSize){
+                mCounts.putIfAbsent(Long.MAX_VALUE, 0);
             } else {
-                mCounts.put(bucket, 1);
+                mCounts.putIfAbsent(bucket + bucketSize, 0);
             }
         }
     }
@@ -85,38 +96,56 @@ public class Histogram {
         if (mCounts.isEmpty()) {
             return;
         }
-        int maxValue = mCounts.values().stream().max(Comparator.naturalOrder()).orElse(0);
-        assert maxValue != 0;
-        int maxKeyLength = (int) Math.log10(mCounts.lastKey()) + 1;
+        int maxCount = 0;
+        int total = 0;
+        for (int count : mCounts.values()) {
+            if (count > maxCount) {
+                maxCount = count;
+            }
+            total += count;
+        }
+        int cumulative = 0;
+        int maxKeyLength =
+                (int) Math.log10(
+                        mCounts.lastKey() == Long.MAX_VALUE ? mMaxCutoff : mCounts.lastKey()) + 1;
         for (Map.Entry<Long, Integer> entry : mCounts.entrySet()) {
-            if (mMinCutoff != null && mMinCutoff.equals(entry.getKey())) {
+            cumulative += entry.getValue();
+            long key = entry.getKey();
+            if (mMinCutoff != null && Long.MIN_VALUE == key) {
                 output.write("<".getBytes(StandardCharsets.UTF_8));
-            } else if (mMaxCutoff != null && mMaxCutoff.equals(entry.getKey())) {
+                key = mMinCutoff;
+            } else if (mMaxCutoff != null && Long.MAX_VALUE == key) {
                 output.write(">".getBytes(StandardCharsets.UTF_8));
+                key = mMaxCutoff;
             } else {
                 output.write(" ".getBytes(StandardCharsets.UTF_8));
             }
-            String bar = String.join(
-                    "",
-                    Collections.nCopies(
-                            (maxValue > maxBarLength)
-                                    ? (entry.getValue() * maxBarLength + maxValue - 1) / maxValue
-                                    : entry.getValue(),
-                            "="));
+            float percentage = entry.getValue() * 100f / total;
+            int barLength =
+                    (maxCount > maxBarLength)
+                            ? (entry.getValue() * maxBarLength + maxCount - 1) / maxCount
+                            : entry.getValue();
+            String bar = String.join("", Collections.nCopies(barLength, "="));
             output.write(
-                    String.format("%" + maxKeyLength + "d| %s\n", entry.getKey(), bar) .getBytes());
+                    String.format(
+                            "%" + maxKeyLength + "d| %-" + maxBarLength + "s (%d = %.1f%%) {%.1f%%}\n",
+                            key,
+                            bar,
+                            entry.getValue(),
+                            percentage,
+                            cumulative * 100f / total) .getBytes());
         }
     }
 
-    // Returns the middle value of the bucket for the specified value.
+    // Returns the lowest value of the bucket for the specified value.
     private Long findBucket(Long value) {
         if (mMinCutoff != null && value < mMinCutoff) {
-            return mMinCutoff;
+            return Long.MIN_VALUE;
         }
         if (mMaxCutoff != null && value > mMaxCutoff) {
-            return mMaxCutoff;
+            return Long.MAX_VALUE;
         }
-        long index = (long) Math.ceil((value - mBucketSize / 2.0) / mBucketSize);
-        return mBucketSize * index;
+        long index = (value + mBucketSize / 2) / mBucketSize;
+        return mBucketSize * index - mBucketSize / 2;
     }
 }

@@ -13,5 +13,13 @@
 
     <test class="com.android.game.qualification.testtype.GameQualificationHostsideController" />
 
+    <!-- Java functional tests-->
+    <target_preparer class="com.android.tradefed.targetprep.InstallBuildEnvApkSetup">
+        <option name="apk-name" value="GameQualificationJavaTestCases.apk" />
+    </target_preparer>
+    <test class="com.android.tradefed.testtype.InstrumentationTest" >
+        <option name="package" value="com.android.game.qualification.tests" />
+    </test>
+
     <result_reporter class="com.android.game.qualification.reporter.GameQualificationResultReporter"/>
 </configuration>
