@@ -60,6 +60,7 @@ public class ApkInfo {
     private String mName;
     private String mFileName;
     private String mPackageName;
+    private String mActivityName;
     private String mLayerName;
     private String mScript;
     private List<Argument> mArgs;
@@ -71,12 +72,14 @@ public class ApkInfo {
             String name,
             String fileName,
             String packageName,
+            String activityName,
             String layerName,
             String script,
             List<Argument> args,
             int loadTime,
             int runTime,
             boolean expectIntents) {
+        mActivityName = activityName;
         checkNotNull(name, Field.NAME.getTag());
         checkNotNull(fileName, Field.FILE_NAME.getTag());
         checkNotNull(packageName, Field.PACKAGE_NAME.getTag());
@@ -106,6 +109,11 @@ public class ApkInfo {
     /** Package name of the app */
     public String getPackageName() {
         return mPackageName;
+    }
+
+    /** (Optional) name of the activity to launch if different from the default of the package. */
+    public String getActivityName() {
+        return mActivityName;
     }
 
     /** Name of the layer to collect metrics from */

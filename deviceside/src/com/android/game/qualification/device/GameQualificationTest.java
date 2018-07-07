@@ -87,6 +87,9 @@ public class GameQualificationTest {
         Intent intent =
                 InstrumentationRegistry.getContext().getPackageManager()
                     .getLaunchIntentForPackage(apk.getPackageName());
+        if (apk.getActivityName() != null) {
+            intent.setClassName(apk.getPackageName(), apk.getActivityName());
+        }
 
         for (ApkInfo.Argument argument : mApk.getArgs()) {
             switch(argument.getType()) {
