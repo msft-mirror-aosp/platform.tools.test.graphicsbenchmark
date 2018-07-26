@@ -287,8 +287,8 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     }
 
     private boolean sample(long readyTimeStamp, long presentTimeStamp) {
-        if (presentTimeStamp == Long.MAX_VALUE) {
-            return true;
+        if (presentTimeStamp == Long.MAX_VALUE || readyTimeStamp == Long.MAX_VALUE) {
+            return false;
         }
         else if (presentTimeStamp < mLatestSeen) {
             return false;
