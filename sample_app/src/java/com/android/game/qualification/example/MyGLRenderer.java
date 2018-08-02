@@ -43,7 +43,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
         // Set the background frame color
-        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        GLES20.glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
 
         Random rand = new Random(5);
 
@@ -52,7 +52,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         mPosition = new float[numSpheres][3];
 
         for (int i = 0; i < mSphere.length; ++i) {
-            mSphere[i] = new Sphere(0.005f, 75);
+            mSphere[i] = new Sphere(0.05f, 75);
 
             mVelocity[i][0] = (rand.nextFloat() * 2 - 1) * 0.02f;
             mVelocity[i][1] = (rand.nextFloat() * 2 - 1) * 0.02f;
