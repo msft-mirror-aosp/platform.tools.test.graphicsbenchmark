@@ -418,7 +418,9 @@ public class GameQualificationHostsideController implements
             try (InputStream stream = screenSource.createInputStream()) {
                 stream.reset();
                 if (isImageBlack(stream)) {
-                    listener.testFailed(testId, "Screenshot was all black.");
+                    listener.testFailed(
+                            testId,
+                            "A screenshot was taken just after metric collection and it was black.");
                 }
             }
         } catch (IOException e) {
