@@ -24,7 +24,7 @@ import com.android.game.qualification.GameCoreConfigurationXmlParser;
 import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.GameCoreConfiguration;
 import com.android.game.qualification.ResultData;
-import com.android.game.qualification.metric.GameQualificationMetricCollector;
+import com.android.game.qualification.metric.BaseGameQualificationMetricCollector;
 import com.android.game.qualification.proto.ResultDataProto;
 import com.android.game.qualification.reporter.GameQualificationResultReporter;
 import com.android.tradefed.config.IConfiguration;
@@ -93,8 +93,7 @@ public class GameQualificationHostsideController implements
     private Collection<IMetricCollector> mCollectors;
     private GameQualificationResultReporter mResultReporter;
     private IInvocationContext mContext;
-    @Nullable
-    private GameQualificationMetricCollector mAGQMetricCollector = null;
+    private ArrayList<BaseGameQualificationMetricCollector> mAGQMetricCollectors;
 
     @Override
     public void setDevice(ITestDevice device) {
@@ -129,9 +128,10 @@ public class GameQualificationHostsideController implements
     @Override
     public void setMetricCollectors(List<IMetricCollector> list) {
         mCollectors = list;
+        mAGQMetricCollectors =  new ArrayList<BaseGameQualificationMetricCollector>();
         for (IMetricCollector collector : list) {
-            if (collector instanceof GameQualificationMetricCollector) {
-                mAGQMetricCollector = (GameQualificationMetricCollector) collector;
+            if (collector instanceof BaseGameQualificationMetricCollector) {
+                mAGQMetricCollectors.add((BaseGameQualificationMetricCollector) collector);
             }
         }
     }
@@ -181,11 +181,14 @@ public class GameQualificationHostsideController implements
             }
         }
 
-        assert mAGQMetricCollector != null;
+        assert !(mAGQMetricCollectors.isEmpty());
         for (IMetricCollector collector : mCollectors) {
             listener = collector.init(mContext, listener);
         }
-        mAGQMetricCollector.setDevice(getDevice());
+
+        for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+            collector.setDevice(getDevice());
+        }
 
         HashMap<String, MetricMeasurement.Metric> runMetrics = new HashMap<>();
 
@@ -206,12 +209,15 @@ public class GameQualificationHostsideController implements
                 CLog.i("Installing %s on %s.", apkFile.getName(), getDevice().getSerialNumber());
                 getDevice().installPackage(apkFile, true);
             }
-            mAGQMetricCollector.setApkInfo(apk);
-            mAGQMetricCollector.setCertificationRequirements(
-                    mGameCoreConfiguration.findCertificationRequirements(apk.getName()));
+
+            for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                collector.setApkInfo(apk);
+                collector.setCertificationRequirements(
+                        mGameCoreConfiguration.findCertificationRequirements(apk.getName()));
+                collector.enable();
+            }
 
             // APK Test.
-            mAGQMetricCollector.enable();
             TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
             if (mResultReporter != null) {
                 CertificationRequirements req =
@@ -240,21 +246,27 @@ public class GameQualificationHostsideController implements
             } else {
                 runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
                 ResultDataProto.Result resultData = retrieveResultData();
-                mAGQMetricCollector.setDeviceResultData(resultData);
 
-                if (!mAGQMetricCollector.isAppStarted()) {
-                    listener.testFailed(
-                            identifier,
-                            "Unable to retrieve any metrics.  App might not have started or "
-                                    + "the target layer name did not exists.");
-                } else if (mAGQMetricCollector.isAppTerminated()) {
-                    listener.testFailed(identifier, "App was terminated");
-                } else {
-                    apkTestPassed = true;
+                for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                    collector.setDeviceResultData(resultData);
+
+                    if (!collector.isAppStarted()) {
+                        listener.testFailed(
+                                identifier,
+                                "Unable to retrieve any metrics.  App might not have started or "
+                                        + "the target layer name did not exists.");
+                    } else if (collector.isAppTerminated()) {
+                        listener.testFailed(identifier, "App was terminated");
+                    } else {
+                        apkTestPassed = true;
+                    }
                 }
             }
             listener.testEnded(identifier, new HashMap<String, MetricMeasurement.Metric>());
-            mAGQMetricCollector.disable();
+
+            for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                collector.disable();
+            }
 
             if (apkTestPassed) {
                 // Screenshot test.
