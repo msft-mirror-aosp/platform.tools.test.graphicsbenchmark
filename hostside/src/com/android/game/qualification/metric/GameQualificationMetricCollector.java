@@ -56,20 +56,11 @@ import java.util.regex.PatternSyntaxException;
  * A {@link com.android.tradefed.device.metric.ScheduledDeviceMetricCollector} to collect graphics
  * benchmarking stats at regular intervals.
  */
-public class GameQualificationMetricCollector extends BaseDeviceMetricCollector {
+public class GameQualificationMetricCollector extends BaseGameQualificationMetricCollector {
     private long mLatestSeen = 0;
-    @Nullable
-    private ApkInfo mTestApk;
-    @Nullable
-    private CertificationRequirements mCertificationRequirements;
-    private ResultDataProto.Result mDeviceResultData;
     private long mVSyncPeriod = 0;
     private ArrayList<GameQualificationMetric> mElapsedTimes;
-    private ITestDevice mDevice;
-    private boolean mAppStarted;
-    private boolean mAppTerminated;
     private File mRawFile;
-    private boolean mEnabled;
     private Pattern mLayerPattern;
     private String mTestLayer;
 
@@ -87,46 +78,6 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
     private long mIntervalMs = 1 * 1000L;
 
     private Timer mTimer;
-
-    public void setApkInfo(ApkInfo apk) {
-        synchronized(this) {
-            mTestApk = apk;
-        }
-    }
-
-    public void setCertificationRequirements(@Nullable CertificationRequirements requirements) {
-        synchronized(this) {
-            mCertificationRequirements = requirements;
-        }
-    }
-
-    public void setDeviceResultData(ResultDataProto.Result resultData) {
-        mDeviceResultData = resultData;
-    }
-
-    public void setDevice(ITestDevice device) {
-        mDevice = device;
-    }
-
-    public boolean isAppStarted() {
-        synchronized(this) {
-            return mAppStarted;
-        }
-    }
-
-    public boolean isAppTerminated() {
-        synchronized(this) {
-            return mAppTerminated;
-        }
-    }
-
-    public void enable() {
-        mEnabled = true;
-    }
-
-    public void disable() {
-        mEnabled = false;
-    }
 
     @Override
     public final void onTestStart(DeviceMetricData runData) {
@@ -211,7 +162,7 @@ public class GameQualificationMetricCollector extends BaseDeviceMetricCollector 
      * @param runData the {@link DeviceMetricData} where to put metrics.
      * @throws InterruptedException
      */
-    private void collect(DeviceMetricData runData) throws InterruptedException {
+    protected void collect(DeviceMetricData runData) throws InterruptedException {
         synchronized(this) {
             try {
 
