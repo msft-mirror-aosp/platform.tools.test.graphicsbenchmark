@@ -32,6 +32,8 @@ import com.android.tradefed.result.TestDescription;
 import com.android.tradefed.result.TestResult;
 import com.android.tradefed.result.TestRunResult;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +54,7 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
     private Map<TestDescription, CertificationRequirements> mRequirements = new ConcurrentHashMap<>();
     private List<Throwable> invocationFailures = new ArrayList<>();
     private List<LogFile> mLogFiles = new ArrayList<>();
+    private ILogSaver mLogSaver;
 
     public void putRequirements(TestDescription testId, CertificationRequirements requirements) {
         mRequirements.put(testId, requirements);
@@ -93,7 +96,7 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
      */
     @Override
     public void setLogSaver(ILogSaver logSaver) {
-        // Ignore
+        mLogSaver = logSaver;
     }
 
     @Override
@@ -161,6 +164,15 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
                     sb.append('\n');
                 }
             }
+            try {
+                LogFile logFile = createFunctionalTestFailureReport();
+                sb.append("Details can be found in ");
+                sb.append(logFile.getPath());
+                sb.append('\n');
+            } catch (IOException e) {
+                sb.append("Error generating test failures report: ");
+                sb.append(e.getMessage());
+            }
         }
 
         Report performanceReport = createPerformanceReport();
@@ -175,6 +187,25 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
         sb.append("\nGame Core Certification: ");
         sb.append(certified ? "PASSED" : "FAILED");
         return "Test results:\n" + sb.toString().trim() + "\n";
+    }
+
+    private LogFile createFunctionalTestFailureReport() throws IOException {
+        StringBuilder sb = new StringBuilder();
+        for (TestRunResult testRunResult : getRunResults()) {
+            for (TestDescription test : testRunResult.getFailedTests()) {
+                sb.append("Test:\n");
+                sb.append(test.toString());
+                sb.append('\n');
+                sb.append("Error:\n");
+                TestResult result = testRunResult.getTestResults().get(test);
+                sb.append(result.getStackTrace());
+                sb.append("\n\n");
+            }
+        }
+        return mLogSaver.saveLogData(
+                "failure-report",
+                LogDataType.TEXT,
+                new ByteArrayInputStream(sb.toString().getBytes()));
     }
 
     /**
