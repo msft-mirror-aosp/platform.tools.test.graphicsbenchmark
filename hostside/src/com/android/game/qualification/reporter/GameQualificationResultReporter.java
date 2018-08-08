@@ -102,14 +102,25 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
     @Override
     public void invocationEnded(long elapsedTime) {
         super.invocationEnded(elapsedTime);
-        Log.logAndDisplay(LogLevel.INFO, TAG, getInvocationSummary());
+        String summary = getInvocationSummary();
+
+        Log.logAndDisplay(LogLevel.INFO, TAG, summary);
+        try {
+            mLogSaver.saveLogData(
+                    "GameQualification-summary",
+                    LogDataType.TEXT,
+                    new ByteArrayInputStream(summary.getBytes()));
+        } catch (IOException e) {
+            Log.logAndDisplay(
+                    LogLevel.ERROR, TAG, "Failed writing summary to file: " + e.getMessage());
+        }
     }
 
     /**
      * Get the invocation summary as a string.
      */
     private String getInvocationSummary() {
-        if (getRunResults().isEmpty() && mLogFiles.isEmpty()) {
+        if (getMergedTestRunResults().isEmpty() && mLogFiles.isEmpty()) {
             return "No test results\n";
         }
         StringBuilder sb = new StringBuilder();
@@ -137,7 +148,7 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
 
         // Print out device test results.
         sb.append("Test Results:\n");
-        for (TestRunResult testRunResult : getRunResults()) {
+        for (TestRunResult testRunResult : getMergedTestRunResults()) {
             sb.append(getTestRunSummary(testRunResult));
         }
 
@@ -157,7 +168,7 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
         if (hasFailedTests()) {
             certified = false;
             sb.append("Certification failed because the following tests failed:\n");
-            for (TestRunResult testRunResult : getRunResults()) {
+            for (TestRunResult testRunResult : getMergedTestRunResults()) {
                 for (TestDescription test : testRunResult.getFailedTests()) {
                     sb.append('\t');
                     sb.append(test.toString());
@@ -191,7 +202,7 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
 
     private LogFile createFunctionalTestFailureReport() throws IOException {
         StringBuilder sb = new StringBuilder();
-        for (TestRunResult testRunResult : getRunResults()) {
+        for (TestRunResult testRunResult : getMergedTestRunResults()) {
             for (TestDescription test : testRunResult.getFailedTests()) {
                 sb.append("Test:\n");
                 sb.append(test.toString());
