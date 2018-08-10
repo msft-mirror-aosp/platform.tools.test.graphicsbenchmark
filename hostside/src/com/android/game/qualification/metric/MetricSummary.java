@@ -113,55 +113,12 @@ public class MetricSummary {
         for (int i = 0; i < loopCount; i++) {
             for (TimeType type : TimeType.values()) {
                 LoopSummary summary = summaries.get(type).get(i);
-                runData.addMetric(
-                        getMetricKey(type, i, "frame_count"),
-                        Metric.newBuilder()
-                                .setType(DataType.PROCESSED)
-                                .setMeasurements(
-                                        Measurements.newBuilder()
-                                                .setSingleInt(summary.getCount())));
-                runData.addMetric(
-                        getMetricKey(type, i, "min_fps"),
-                        getFpsMetric(summary.getMinFPS()));
-                runData.addMetric(
-                        getMetricKey(type, i, "max_fps"),
-                        getFpsMetric(summary.getMaxFPS()));
-                runData.addMetric(
-                        getMetricKey(type, i, "fps"),
-                        getFpsMetric(summary.getAvgFPS()));
-
-                runData.addMetric(
-                        getMetricKey(type, i, "min_frametime"),
-                        getFrameTimeMetric(summary.getMinFrameTime()));
-                runData.addMetric(
-                        getMetricKey(type, i, "max_frametime"),
-                        getFrameTimeMetric(summary.getMaxFrameTime()));
-                runData.addMetric(
-                        getMetricKey(type, i, "frametime"),
-                        getFrameTimeMetric(summary.getAvgFrameTime()));
-                runData.addMetric(
-                        getMetricKey(type, i, "90th_percentile"),
-                        getFrameTimeMetric(summary.get90thPercentile()));
-                runData.addMetric(
-                        getMetricKey(type, i, "95th_percentile"),
-                        getFrameTimeMetric(summary.get95thPercentile()));
-                runData.addMetric(
-                        getMetricKey(type, i, "99th_percentile"),
-                        getFrameTimeMetric(summary.get99thPercentile()));
+                summary.addToMetricData(runData, i, type);
             }
         }
     }
 
-    private Metric.Builder getFpsMetric(double value) {
-        return Metric.newBuilder()
-                .setUnit("fps")
-                .setDirection(Directionality.UP_BETTER)
-                .setType(DataType.PROCESSED)
-                .setMeasurements(Measurements.newBuilder().setSingleDouble(value));
-    }
-
-
-    private Metric.Builder getFrameTimeMetric(long value) {
+    private static Metric.Builder getNsMetric(long value) {
         return Metric.newBuilder()
                 .setUnit("ns")
                 .setDirection(Directionality.DOWN_BETTER)
@@ -169,7 +126,7 @@ public class MetricSummary {
                 .setMeasurements(Measurements.newBuilder().setSingleInt(value));
     }
 
-    private Metric.Builder getFrameTimeMetric(double value) {
+    private static Metric.Builder getNsMetric(double value) {
         return Metric.newBuilder()
                 .setUnit("ns")
                 .setDirection(Directionality.DOWN_BETTER)
@@ -264,7 +221,6 @@ public class MetricSummary {
         @Nullable
         private CertificationRequirements mRequirements;
         private double jankScore = 0;
-        private int numFrames = 0;
         private long mVSyncPeriodNs;
         private int loopCount = 0;
         private long loadTimeMs = -1;
@@ -291,7 +247,6 @@ public class MetricSummary {
 
         public void addFrameTime(TimeType type, long frameTimeNs) {
             if (type == TimeType.PRESENT) {
-                numFrames++;
                 totalTimeNs += frameTimeNs;
                 if (mRequirements != null) {
                     float targetFrameTime = msToNs(mRequirements.getFrameTime());
@@ -344,6 +299,10 @@ public class MetricSummary {
 
         public long getCount() {
             return count;
+        }
+
+        public long getDuration() {
+            return totalTimeNs;
         }
 
         public long getMinFrameTime() {
@@ -424,12 +383,44 @@ public class MetricSummary {
             }
         }
 
+        private void addToMetricData(DeviceMetricData runData, int index, TimeType type) {
+            runData.addMetric(
+                    getMetricKey(type, index, "frame_count"),
+                    Metric.newBuilder()
+                            .setType(DataType.PROCESSED)
+                            .setMeasurements(
+                                    Measurements.newBuilder()
+                                            .setSingleInt(getCount())));
+            runData.addMetric(
+                    getMetricKey(type, index, "duration"),
+                    getNsMetric(getDuration()));
+            runData.addMetric(
+                    getMetricKey(type, index, "min_frametime"),
+                    getNsMetric(getMinFrameTime()));
+            runData.addMetric(
+                    getMetricKey(type, index, "max_frametime"),
+                    getNsMetric(getMaxFrameTime()));
+            runData.addMetric(
+                    getMetricKey(type, index, "frametime"),
+                    getNsMetric(getAvgFrameTime()));
+            runData.addMetric(
+                    getMetricKey(type, index, "90th_percentile"),
+                    getNsMetric(get90thPercentile()));
+            runData.addMetric(
+                    getMetricKey(type, index, "95th_percentile"),
+                    getNsMetric(get95thPercentile()));
+            runData.addMetric(
+                    getMetricKey(type, index, "99th_percentile"),
+                    getNsMetric(get99thPercentile()));
+        }
+
         public void parseRunMetrics(
                 IInvocationContext context,
                 TimeType type,
                 int runIndex,
                 HashMap<String, Metric> runMetrics) {
             count = getMetricLongValue(context, type, runIndex, "frame_count", runMetrics);
+            totalTimeNs = getMetricLongValue(context, type, runIndex, "duration", runMetrics);
             minFrameTime = getMetricLongValue(context, type, runIndex, "min_frametime", runMetrics);
             maxFrameTime = getMetricLongValue(context, type, runIndex, "max_frametime", runMetrics);
             avgFrameTime = getMetricDoubleValue(context, type, runIndex, "frametime", runMetrics);
@@ -472,6 +463,7 @@ public class MetricSummary {
             LoopSummary that = (LoopSummary) o;
             return processed == that.processed &&
                     count == that.count &&
+                    totalTimeNs == that.totalTimeNs &&
                     minFrameTime == that.minFrameTime &&
                     maxFrameTime == that.maxFrameTime &&
                     Double.compare(that.avgFrameTime, avgFrameTime) == 0 &&
@@ -485,6 +477,7 @@ public class MetricSummary {
             return Objects.hash(
                     processed,
                     count,
+                    totalTimeNs,
                     minFrameTime,
                     maxFrameTime,
                     avgFrameTime,
@@ -495,12 +488,14 @@ public class MetricSummary {
 
         public String toString() {
             return String.format(
-                    "avg Frame Time: %7.3f ms\t\tavg FPS = %.3f fps\n"
+                    "duration: %.3f ms\n"
+                            + "avg Frame Time: %7.3f ms\t\tavg FPS = %.3f fps\n"
                             + "max Frame Time: %7.3f ms\t\tmin FPS = %.3f fps\n"
                             + "min Frame Time: %7.3f ms\t\tmax FPS = %.3f fps\n"
                             + "90th Percentile Frame Time: %7.3f ms\n"
                             + "95th Percentile Frame Time: %7.3f ms\n"
                             + "99th Percentile Frame Time: %7.3f ms\n",
+                    nsToMs(getDuration()),
                     nsToMs(getAvgFrameTime()), getAvgFPS(),
                     nsToMs(getMaxFrameTime()), getMinFPS(),
                     nsToMs(getMinFrameTime()), getMaxFPS(),

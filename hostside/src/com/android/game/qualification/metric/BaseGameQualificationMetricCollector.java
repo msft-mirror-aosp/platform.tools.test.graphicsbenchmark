@@ -19,13 +19,9 @@ package com.android.game.qualification.metric;
 import com.android.annotations.Nullable;
 import com.android.game.qualification.ApkInfo;
 import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
-import com.android.tradefed.device.metric.DeviceMetricData;
 import com.android.tradefed.device.ITestDevice;
-import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
 import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.proto.ResultDataProto;
-
-import java.util.Map;
 
 public abstract class BaseGameQualificationMetricCollector extends BaseDeviceMetricCollector {
     @Nullable
@@ -34,9 +30,9 @@ public abstract class BaseGameQualificationMetricCollector extends BaseDeviceMet
     protected CertificationRequirements mCertificationRequirements;
     protected ResultDataProto.Result mDeviceResultData;
     protected ITestDevice mDevice;
-    protected boolean mEnabled;
-    protected boolean mAppStarted;
-    protected boolean mAppTerminated;
+    private boolean mEnabled;
+    private boolean mHasError;
+    private String mErrorMessage;
 
     public void setDevice(ITestDevice device) {
         mDevice = device;
@@ -58,16 +54,30 @@ public abstract class BaseGameQualificationMetricCollector extends BaseDeviceMet
         mDeviceResultData = resultData;
     }
 
-    public boolean isAppStarted() {
+    public boolean hasError() {
         synchronized(this) {
-            return mAppStarted;
+            return mHasError;
         }
     }
 
-    public boolean isAppTerminated() {
+    protected void setHasError(boolean hasError) {
         synchronized(this) {
-            return mAppTerminated;
+            mHasError = hasError;
         }
+    }
+
+    public String getErrorMessage() {
+        synchronized (this) {
+            return mErrorMessage;
+        }
+    }
+
+    protected void setErrorMessage(String msg) {
+        mErrorMessage = msg;
+    }
+
+    public boolean isEnabled() {
+        return mEnabled;
     }
 
     public void enable() {
