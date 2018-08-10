@@ -29,8 +29,8 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 
-/** Test for {@link GameQualificationMetricCollector}. */
-public class GameQualificationMetricCollectorTest {
+/** Test for {@link GameQualificationFpsCollector}. */
+public class GameQualificationFpsCollectorTest {
     private static final String VSYNC = "16666666";
 
     private static final ApkInfo APK = new ApkInfo(
@@ -45,11 +45,11 @@ public class GameQualificationMetricCollectorTest {
             10000,
             true);
 
-    private GameQualificationMetricCollector mCollector;
+    private GameQualificationFpsCollector mCollector;
 
     @Before
     public void setUp() {
-        mCollector = new GameQualificationMetricCollector();
+        mCollector = new GameQualificationFpsCollector();
         mCollector.setApkInfo(APK);
         mCollector.enable();
     }

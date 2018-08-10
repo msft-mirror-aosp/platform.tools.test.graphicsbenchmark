@@ -45,7 +45,7 @@ import java.util.regex.PatternSyntaxException;
 /**
  * A {@link com.android.tradefed.device.metric.IMetricCollector} to collect FPS data.
  */
-public class GameQualificationMetricCollector extends GameQualificationScheduledMetricCollector {
+public class GameQualificationFpsCollector extends GameQualificationScheduledMetricCollector {
     private long mLatestSeen = 0;
     private long mVSyncPeriod = 0;
     private List<GameQualificationMetric> mElapsedTimes = new ArrayList<>();
@@ -54,7 +54,7 @@ public class GameQualificationMetricCollector extends GameQualificationScheduled
     private String mTestLayer;
     private boolean mAppStarted;
 
-    public GameQualificationMetricCollector() {
+    public GameQualificationFpsCollector() {
         mIntervalMs = 1000L;
     }
 

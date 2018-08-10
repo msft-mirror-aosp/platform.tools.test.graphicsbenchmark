@@ -19,7 +19,7 @@ import com.android.ddmlib.Log;
 import com.android.ddmlib.Log.LogLevel;
 import com.android.ddmlib.testrunner.TestResult.TestStatus;
 import com.android.game.qualification.CertificationRequirements;
-import com.android.game.qualification.metric.GameQualificationMetricCollector;
+import com.android.game.qualification.metric.GameQualificationFpsCollector;
 import com.android.game.qualification.metric.MetricSummary;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
@@ -69,7 +69,7 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
 
     /**
      * Collect metrics produces by
-     * {@link GameQualificationMetricCollector}.
+     * {@link GameQualificationFpsCollector}.
      */
     @Override
     public void testEnded(TestDescription testId, long elapsedTime, HashMap<String, Metric> metrics) {
