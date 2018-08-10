@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.android.game.qualification.metric;
 
 import static com.android.game.qualification.metric.MetricSummary.TimeType.PRESENT;
 import static com.android.game.qualification.metric.MetricSummary.TimeType.READY;
 
+import com.android.annotations.VisibleForTesting;
 import com.android.game.qualification.proto.ResultDataProto;
-import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.metric.DeviceMetricData;
 import com.android.tradefed.log.LogUtil.CLog;
-import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
 import com.android.tradefed.result.ByteArrayInputStreamSource;
 import com.android.tradefed.result.FileInputStreamSource;
 import com.android.tradefed.result.InputStreamSource;
@@ -40,190 +38,145 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * A {@link com.android.tradefed.device.metric.ScheduledDeviceMetricCollector} to collect graphics
- * benchmarking stats at regular intervals.
+ * A {@link com.android.tradefed.device.metric.IMetricCollector} to collect FPS data.
  */
-public class GameQualificationMetricCollector extends BaseGameQualificationMetricCollector {
+public class GameQualificationMetricCollector extends GameQualificationScheduledMetricCollector {
     private long mLatestSeen = 0;
     private long mVSyncPeriod = 0;
-    private ArrayList<GameQualificationMetric> mElapsedTimes;
+    private List<GameQualificationMetric> mElapsedTimes = new ArrayList<>();
     private File mRawFile;
     private Pattern mLayerPattern;
     private String mTestLayer;
     private boolean mAppStarted;
 
-    @Option(
-        name = "fixed-schedule-rate",
-        description = "Schedule the timetask as a fixed schedule rate"
-    )
-    private boolean mFixedScheduleRate = false;
+    public GameQualificationMetricCollector() {
+        mIntervalMs = 1000L;
+    }
 
-    @Option(
-        name = "interval",
-        description = "the interval between two tasks being scheduled",
-        isTimeVal = true
-    )
-    private long mIntervalMs = 1 * 1000L;
-
-    private Timer mTimer;
+    @VisibleForTesting
+    List<GameQualificationMetric> getElapsedTimes() {
+        return mElapsedTimes;
+    }
 
     @Override
-    public final void onTestStart(DeviceMetricData runData) {
+    protected void doStart(DeviceMetricData runData) {
         if (!isEnabled()) {
-            // GameQualificationMetricCollector is only enabled by
-            // GameQualificationHostsideController.
             return;
         }
-        Preconditions.checkState(mTestApk != null);
-
+        Preconditions.checkState(getApkInfo() != null);
         CLog.v("Test run started on device %s.", mDevice);
 
         try {
             mRawFile = File.createTempFile("GameQualification_RAW_TIMES", ".txt");
         } catch (IOException e) {
+            setErrorMessage("Failed creating file to store raw FPS data.");
             throw new RuntimeException(e);
         }
 
-        synchronized(this) {
-            mElapsedTimes = new ArrayList<>();
-            mLatestSeen = 0;
-            mAppStarted = false;
-            setErrorMessage(
-                    "Unable to retrieve any metrics.  App might not have started or the target "
-                            + "layer name did not exists.");
-            setHasError(true);
+        mElapsedTimes.clear();
+        mLatestSeen = 0;
+        mAppStarted = false;
+        setErrorMessage(
+                "Unable to retrieve any metrics.  App might not have started or the target "
+                        + "layer name did not exists.");
+        setHasError(true);
 
-            try {
-                mLayerPattern = Pattern.compile(mTestApk.getLayerName());
-            } catch (PatternSyntaxException e) {
-                setErrorMessage("PatternSyntaxException: " + e.getMessage());
-                setHasError(true);
-                return;
-            }
-        }
-
-        mTimer = new Timer();
-        TimerTask timerTask =
-                new TimerTask() {
-                    @Override
-                    public void run() {
-                        try {
-                            collect();
-                        } catch (Exception e) {
-                            mTimer.cancel();
-                            Thread.currentThread().interrupt();
-                            CLog.e("Test app '%s' terminated before data collection was completed.", mTestApk.getName());
-                        }
-                    }
-                };
-
-        if (mFixedScheduleRate) {
-            mTimer.scheduleAtFixedRate(timerTask, 0, mIntervalMs);
-        } else {
-            mTimer.schedule(timerTask, 0, mIntervalMs);
+        try {
+            mLayerPattern = Pattern.compile(getApkInfo().getLayerName());
+        } catch (PatternSyntaxException e) {
+            throw new RuntimeException(e);
         }
     }
-
-    @Override
-    public final void onTestEnd(DeviceMetricData runData, Map<String, Metric> currentRunMetrics) {
-        if (!isEnabled()) {
-            return;
-        }
-
-        if (mTimer != null) {
-            mTimer.cancel();
-            mTimer.purge();
-        }
-        onEnd(runData);
-        CLog.d("Frame time collection completed.");
-    }
-
 
     /**
      * Task periodically & asynchronously run during the test running.
      */
-    private void collect() {
-        synchronized(this) {
-            try {
-
-                if (!mAppStarted) {
-                    String listCmd = "dumpsys SurfaceFlinger --list";
-                    String[] layerList = mDevice.executeShellCommand(listCmd).split("\n");
-
-                    for (int i = 0; i < layerList.length; i++) {
-                        Matcher m = mLayerPattern.matcher(layerList[i]);
-                        if (m.matches()) {
-                            mTestLayer = layerList[i];
-                        }
-                    }
-                }
-
-                CLog.d("Collecting benchmark stats for layer: %s", mTestLayer);
-
-                String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestLayer+ "\"";
-                String[] raw = mDevice.executeShellCommand(cmd).split("\n");
-
-                if (raw.length == 1) {
-                    if (mAppStarted) {
-                        setHasError(true);
-                        setErrorMessage("App was terminated");
-                        throw new RuntimeException();
-                    }
-                    else
-                        return;
-                }
-
-                if (!mAppStarted) {
-                    mVSyncPeriod = Long.parseLong(raw[0]);
-                    mAppStarted = true;
-                    setHasError(false);
-                    setErrorMessage("");
-                }
-
-                try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(mRawFile, true))) {
-                    outputFile.write("Vsync: " + raw[0] + "\n");
-                    outputFile.write("Latest Seen: " + mLatestSeen + "\n");
-
-                    outputFile.write(String.format("%20s", "Desired Present Time") + "\t");
-                    outputFile.write(String.format("%20s", "Actual Present Time") + "\t");
-                    outputFile.write(String.format("%20s", "Frame Ready Time") + "\n");
-
-                    boolean overlap = false;
-                    for (int i = 1; i < raw.length; i++) {
-                        String[] parts = raw[i].split("\t");
-
-                        if (parts.length == 3) {
-                            if (sample(Long.parseLong(parts[2]), Long.parseLong(parts[1]))) {
-                                overlap = true;
-                            }
-                        }
-
-                        outputFile.write(String.format("%20d", Long.parseLong(parts[0])) + "\t");
-                        outputFile.write(String.format("%20d", Long.parseLong(parts[1])) + "\t");
-                        outputFile.write(String.format("%20d", Long.parseLong(parts[2])) + "\n");
-                    }
-
-                    if (!overlap) {
-                        CLog.e("No overlap with previous poll, we missed some frames!"); // FIND SOMETHING BETTER
-                    }
-
-                    outputFile.write("\n\n");
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            } catch (DeviceNotAvailableException | NullPointerException e) {
-                CLog.e(e);
-            }
+    protected void collect() {
+        try {
+            String[] raw = getRawData();
+            processRawData(raw);
+        } catch (DeviceNotAvailableException e) {
+            setErrorMessage(
+                    "Device not available during FPS data collection: " + e.getMessage());
+            throw new RuntimeException(e);
         }
     }
+
+    private String[] getRawData() throws DeviceNotAvailableException {
+        if (!mAppStarted) {
+            String listCmd = "dumpsys SurfaceFlinger --list";
+            String[] layerList = mDevice.executeShellCommand(listCmd).split("\n");
+
+            for (String layer : layerList) {
+                Matcher m = mLayerPattern.matcher(layer);
+                if (m.matches()) {
+                    mTestLayer = layer;
+                    break;
+                }
+            }
+        }
+        CLog.d("Collecting benchmark stats for layer: %s", mTestLayer);
+
+
+        String cmd = "dumpsys SurfaceFlinger --latency \"" + mTestLayer+ "\"";
+        return mDevice.executeShellCommand(cmd).split("\n");
+    }
+
+    @VisibleForTesting
+    void processRawData(String[] raw) {
+        if (raw.length == 1) {
+            if (mAppStarted) {
+                throw new RuntimeException("App was terminated");
+            } else {
+                return;
+            }
+        }
+
+        if (!mAppStarted) {
+            mVSyncPeriod = Long.parseLong(raw[0]);
+            mAppStarted = true;
+            setHasError(false);
+            setErrorMessage("");
+        }
+
+        try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(mRawFile, true))) {
+            outputFile.write("Vsync: " + raw[0] + "\n");
+            outputFile.write("Latest Seen: " + mLatestSeen + "\n");
+
+            outputFile.write(String.format("%20s", "Desired Present Time") + "\t");
+            outputFile.write(String.format("%20s", "Actual Present Time") + "\t");
+            outputFile.write(String.format("%20s", "Frame Ready Time") + "\n");
+
+            boolean overlap = false;
+            for (int i = 1; i < raw.length; i++) {
+                String[] parts = raw[i].split("\t");
+
+                if (parts.length == 3) {
+                    if (sample(Long.parseLong(parts[2]), Long.parseLong(parts[1]))) {
+                        overlap = true;
+                    }
+                }
+
+                outputFile.write(String.format("%20d", Long.parseLong(parts[0])) + "\t");
+                outputFile.write(String.format("%20d", Long.parseLong(parts[1])) + "\t");
+                outputFile.write(String.format("%20d", Long.parseLong(parts[2])) + "\n");
+            }
+
+            if (!overlap) {
+                CLog.e("No overlap with previous poll, we missed some frames!"); // FIND SOMETHING BETTER
+            }
+
+            outputFile.write("\n\n");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     private boolean sample(long readyTimeStamp, long presentTimeStamp) {
         if (presentTimeStamp == Long.MAX_VALUE || readyTimeStamp == Long.MAX_VALUE) {
@@ -253,7 +206,6 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
         outputFile.write("Present Time (ms)\tFrame Ready Time (ms)\n");
 
         long prevPresentTime = 0, prevReadyTime = 0;
-        int numOfTimestamps = 0;
 
         List<Long> frameTimes = new ArrayList<>();
 
@@ -284,8 +236,6 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
             prevReadyTime = readyTime;
             summary.addFrameTime(READY, readyTimeDiff);
 
-            numOfTimestamps++;
-
             outputFile.write(
                     String.format(
                             "%d.%06d\t\t%d.%06d\n",
@@ -299,71 +249,70 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
         printHistogram(frameTimes, runIndex);
     }
 
-    private void onEnd(DeviceMetricData runData) {
-        synchronized(this) {
-            if (mElapsedTimes.isEmpty()) {
-                return;
+    @Override
+    protected void doEnd(DeviceMetricData runData) {
+        if (mElapsedTimes.isEmpty()) {
+            return;
+        }
+        try {
+            try(InputStreamSource rawData = new FileInputStreamSource(mRawFile, true)) {
+                testLog("RAW-" + getApkInfo().getName(), LogDataType.TEXT, rawData);
             }
-            try {
-                try(InputStreamSource rawData = new FileInputStreamSource(mRawFile, true)) {
-                        testLog("RAW-" + mTestApk.getName(), LogDataType.TEXT, rawData);
-                }
 
-                 mRawFile.delete();
+            mRawFile.delete();
 
-                File tmpFile = File.createTempFile("GameQualification-frametimes", ".txt");
-                try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
-                    MetricSummary.Builder summaryBuilder =
-                            new MetricSummary.Builder(mCertificationRequirements, mVSyncPeriod);
+            File tmpFile = File.createTempFile("GameQualification-frametimes", ".txt");
+            try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
+                MetricSummary.Builder summaryBuilder =
+                        new MetricSummary.Builder(mCertificationRequirements, mVSyncPeriod);
 
-                    long startTime = 0L;
-                    int runIndex = 0;
+                long startTime = 0L;
+                int runIndex = 0;
 
-                    // Calculate load time.
-                    long appLaunchedTime = 0;
-                    for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
-                        if (e.getType() == ResultDataProto.Event.Type.APP_LAUNCH) {
-                             appLaunchedTime = e.getTimestamp();
-                             continue;
-                        }
-                        // Get the first START_LOOP.  Assume START_LOOP is in chronological order
-                        // and comes after APP_LAUNCH.
-                        if (e.getType() == ResultDataProto.Event.Type.START_LOOP) {
-                            summaryBuilder.setLoadTimeMs(e.getTimestamp() - appLaunchedTime);
-                            break;
-                        }
+                // Calculate load time.
+                long appLaunchedTime = 0;
+                for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
+                    if (e.getType() == ResultDataProto.Event.Type.APP_LAUNCH) {
+                        appLaunchedTime = e.getTimestamp();
+                        continue;
                     }
-                    for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
-                        if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
-                            continue;
-                        }
-
-                        long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
-
-                        if (startTime != 0) {
-                            processTimestampsSlice(summaryBuilder, runIndex++, startTime, endTime, outputFile);
-                        }
-                        startTime = endTime;
-                    }
-
-                    processTimestampsSlice(
-                            summaryBuilder,
-                            runIndex,
-                            startTime,
-                            mElapsedTimes.get(mElapsedTimes.size() - 1).getActualPresentTime(),
-                            outputFile);
-
-                    MetricSummary summary = summaryBuilder.build();
-                    summary.addToMetricData(runData);
-                    outputFile.flush();
-                    try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
-                        testLog("GameQualification-frametimes-" + mTestApk.getName(), LogDataType.TEXT, source);
+                    // Get the first START_LOOP.  Assume START_LOOP is in chronological order
+                    // and comes after APP_LAUNCH.
+                    if (e.getType() == ResultDataProto.Event.Type.START_LOOP) {
+                        summaryBuilder.setLoadTimeMs(e.getTimestamp() - appLaunchedTime);
+                        break;
                     }
                 }
-                tmpFile.delete();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+                for (ResultDataProto.Event e : mDeviceResultData.getEventsList()) {
+                    if (e.getType() != ResultDataProto.Event.Type.START_LOOP) {
+                        continue;
+                    }
+
+                    long endTime = e.getTimestamp() * 1000000;  /* ms to ns */
+
+                    if (startTime != 0) {
+                        processTimestampsSlice(summaryBuilder, runIndex++, startTime, endTime, outputFile);
+                    }
+                    startTime = endTime;
+                }
+
+                processTimestampsSlice(
+                        summaryBuilder,
+                        runIndex,
+                        startTime,
+                        mElapsedTimes.get(mElapsedTimes.size() - 1).getActualPresentTime(),
+                        outputFile);
+
+                MetricSummary summary = summaryBuilder.build();
+                summary.addToMetricData(runData);
+                outputFile.flush();
+                try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
+                    testLog("GameQualification-frametimes-" + getApkInfo().getName(), LogDataType.TEXT, source);
+                }
             }
+            tmpFile.delete();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -374,11 +323,10 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
             histogram.plotAscii(output, 100);
             try(InputStreamSource source = new ByteArrayInputStreamSource(output.toByteArray())) {
                 testLog(
-                        "GameQualification-histogram-" + mTestApk.getName() + "-run" + runIndex,
+                        "GameQualification-histogram-" + getApkInfo().getName() + "-run" + runIndex,
                         LogDataType.TEXT,
                         source);
             }
-
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
