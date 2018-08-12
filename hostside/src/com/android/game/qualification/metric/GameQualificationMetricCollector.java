@@ -19,14 +19,9 @@ package com.android.game.qualification.metric;
 import static com.android.game.qualification.metric.MetricSummary.TimeType.PRESENT;
 import static com.android.game.qualification.metric.MetricSummary.TimeType.READY;
 
-import com.android.annotations.Nullable;
-import com.android.game.qualification.ApkInfo;
-import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.proto.ResultDataProto;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
-import com.android.tradefed.device.ITestDevice;
-import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
 import com.android.tradefed.device.metric.DeviceMetricData;
 import com.android.tradefed.log.LogUtil.CLog;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
@@ -63,6 +58,7 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
     private File mRawFile;
     private Pattern mLayerPattern;
     private String mTestLayer;
+    private boolean mAppStarted;
 
     @Option(
         name = "fixed-schedule-rate",
@@ -81,7 +77,7 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
 
     @Override
     public final void onTestStart(DeviceMetricData runData) {
-        if (!mEnabled) {
+        if (!isEnabled()) {
             // GameQualificationMetricCollector is only enabled by
             // GameQualificationHostsideController.
             return;
@@ -100,32 +96,27 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
             mElapsedTimes = new ArrayList<>();
             mLatestSeen = 0;
             mAppStarted = false;
-            mAppTerminated = false;
+            setErrorMessage(
+                    "Unable to retrieve any metrics.  App might not have started or the target "
+                            + "layer name did not exists.");
+            setHasError(true);
 
             try {
                 mLayerPattern = Pattern.compile(mTestApk.getLayerName());
             } catch (PatternSyntaxException e) {
-                // TODO: Hostside controller should properly report the error
-                CLog.e(e);
-                mAppStarted = false;
+                setErrorMessage("PatternSyntaxException: " + e.getMessage());
+                setHasError(true);
                 return;
             }
         }
 
-
-
-        onStart(runData);
         mTimer = new Timer();
         TimerTask timerTask =
                 new TimerTask() {
                     @Override
                     public void run() {
                         try {
-                            collect(runData);
-                        } catch (InterruptedException e) {
-                            mTimer.cancel();
-                            Thread.currentThread().interrupt();
-                            CLog.e("Interrupted Exception thrown from task: %s", e);
+                            collect();
                         } catch (Exception e) {
                             mTimer.cancel();
                             Thread.currentThread().interrupt();
@@ -143,7 +134,7 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
 
     @Override
     public final void onTestEnd(DeviceMetricData runData, Map<String, Metric> currentRunMetrics) {
-        if (!mEnabled) {
+        if (!isEnabled()) {
             return;
         }
 
@@ -152,17 +143,14 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
             mTimer.purge();
         }
         onEnd(runData);
-        CLog.d("onTestRunEnd");
+        CLog.d("Frame time collection completed.");
     }
 
 
     /**
      * Task periodically & asynchronously run during the test running.
-     *
-     * @param runData the {@link DeviceMetricData} where to put metrics.
-     * @throws InterruptedException
      */
-    protected void collect(DeviceMetricData runData) throws InterruptedException {
+    private void collect() {
         synchronized(this) {
             try {
 
@@ -185,7 +173,8 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
 
                 if (raw.length == 1) {
                     if (mAppStarted) {
-                        mAppTerminated = true;
+                        setHasError(true);
+                        setErrorMessage("App was terminated");
                         throw new RuntimeException();
                     }
                     else
@@ -195,6 +184,8 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
                 if (!mAppStarted) {
                     mVSyncPeriod = Long.parseLong(raw[0]);
                     mAppStarted = true;
+                    setHasError(false);
+                    setErrorMessage("");
                 }
 
                 try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(mRawFile, true))) {
@@ -228,9 +219,6 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-
-
-
             } catch (DeviceNotAvailableException | NullPointerException e) {
                 CLog.e(e);
             }
@@ -255,17 +243,14 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
     }
 
 
-    private void onStart(DeviceMetricData runData) {}
-
     private void processTimestampsSlice(
             MetricSummary.Builder summary,
             int runIndex,
             long startTimestamp,
             long endTimestamp,
             BufferedWriter outputFile) throws IOException {
-        outputFile.write("Started run " + runIndex + " at: " + startTimestamp + " ns\n");
-
-        outputFile.write("Present Time\tFrame Ready Time\n");
+        outputFile.write("Loop " + runIndex + " timestamp: " + startTimestamp + " ns\n");
+        outputFile.write("Present Time (ms)\tFrame Ready Time (ms)\n");
 
         long prevPresentTime = 0, prevReadyTime = 0;
         int numOfTimestamps = 0;
@@ -301,18 +286,16 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
 
             numOfTimestamps++;
 
-            outputFile.write(presentTimeDiff + " ns\t\t" + readyTimeDiff + " ns\n");
+            outputFile.write(
+                    String.format(
+                            "%d.%06d\t\t%d.%06d\n",
+                            presentTimeDiff / 1000000,
+                            presentTimeDiff % 1000000,
+                            readyTimeDiff / 1000000,
+                            readyTimeDiff % 1000000));
             frameTimes.add(presentTimeDiff);
         }
         summary.endLoop();
-
-        // There's a fair amount of slop in the system wrt device timing vs host orchestration,
-        // so it's possible that we'll receive an extra intent after we've stopped caring.
-        if (numOfTimestamps == 0) {
-            outputFile.write("No samples in period, assuming spurious intent.\n\n");
-            return;
-        }
-
         printHistogram(frameTimes, runIndex);
     }
 
@@ -328,14 +311,8 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
 
                  mRawFile.delete();
 
-                File tmpFile = File.createTempFile("GameQualification", ".txt");
+                File tmpFile = File.createTempFile("GameQualification-frametimes", ".txt");
                 try (BufferedWriter outputFile = new BufferedWriter(new FileWriter(tmpFile))) {
-                    if (mAppTerminated) {
-                        outputFile.write("NOTE: THE APPLICATION WAS INTERRUPTED AT SOME POINT DURING THE TEST. RESULTS MAY BE INCOMPLETE.\n\n\n\n");
-                    }
-
-                    outputFile.write("VSync Period: " + mVSyncPeriod + "\n\n");
-
                     MetricSummary.Builder summaryBuilder =
                             new MetricSummary.Builder(mCertificationRequirements, mVSyncPeriod);
 
@@ -378,10 +355,9 @@ public class GameQualificationMetricCollector extends BaseGameQualificationMetri
 
                     MetricSummary summary = summaryBuilder.build();
                     summary.addToMetricData(runData);
-                    outputFile.write(summary.toString());
                     outputFile.flush();
                     try(InputStreamSource source = new FileInputStreamSource(tmpFile, true)) {
-                        testLog("GameQualification-" + mTestApk.getName(), LogDataType.TEXT, source);
+                        testLog("GameQualification-frametimes-" + mTestApk.getName(), LogDataType.TEXT, source);
                     }
                 }
                 tmpFile.delete();

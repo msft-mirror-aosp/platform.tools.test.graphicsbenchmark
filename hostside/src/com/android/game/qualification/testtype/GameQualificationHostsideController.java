@@ -16,13 +16,12 @@
 
 package com.android.game.qualification.testtype;
 
-import com.android.annotations.Nullable;
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.game.qualification.ApkInfo;
-import com.android.game.qualification.GameCoreConfigurationXmlParser;
 import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.GameCoreConfiguration;
+import com.android.game.qualification.GameCoreConfigurationXmlParser;
 import com.android.game.qualification.ResultData;
 import com.android.game.qualification.metric.BaseGameQualificationMetricCollector;
 import com.android.game.qualification.proto.ResultDataProto;
@@ -128,7 +127,7 @@ public class GameQualificationHostsideController implements
     @Override
     public void setMetricCollectors(List<IMetricCollector> list) {
         mCollectors = list;
-        mAGQMetricCollectors =  new ArrayList<BaseGameQualificationMetricCollector>();
+        mAGQMetricCollectors = new ArrayList<>();
         for (IMetricCollector collector : list) {
             if (collector instanceof BaseGameQualificationMetricCollector) {
                 mAGQMetricCollectors.add((BaseGameQualificationMetricCollector) collector);
@@ -250,13 +249,8 @@ public class GameQualificationHostsideController implements
                 for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
                     collector.setDeviceResultData(resultData);
 
-                    if (!collector.isAppStarted()) {
-                        listener.testFailed(
-                                identifier,
-                                "Unable to retrieve any metrics.  App might not have started or "
-                                        + "the target layer name did not exists.");
-                    } else if (collector.isAppTerminated()) {
-                        listener.testFailed(identifier, "App was terminated");
+                    if (collector.hasError()) {
+                        listener.testFailed( identifier, collector.getErrorMessage());
                     } else {
                         apkTestPassed = true;
                     }

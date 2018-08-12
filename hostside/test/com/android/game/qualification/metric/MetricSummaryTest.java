@@ -49,6 +49,7 @@ public class MetricSummaryTest {
         LoopSummary summary = new LoopSummary();
         summary.addFrameTime(1);
         summary.processFrameTimes();
+        assertEquals(1, summary.getDuration());
         assertEquals(1, summary.getAvgFrameTime(), EPSILON);
         assertEquals(1, summary.getMinFrameTime());
         assertEquals(1, summary.getMaxFrameTime());
@@ -67,6 +68,7 @@ public class MetricSummaryTest {
         summary.addFrameTime(2);
         summary.addFrameTime(3);
         summary.processFrameTimes();
+        assertEquals(6, summary.getDuration());
         assertEquals(2, summary.getAvgFrameTime(), EPSILON);
         assertEquals(1, summary.getMinFrameTime());
         assertEquals(3, summary.getMaxFrameTime());
@@ -85,6 +87,7 @@ public class MetricSummaryTest {
             summary.addFrameTime(i + 1);
         }
         summary.processFrameTimes();
+        assertEquals(500500, summary.getDuration());
         assertEquals(500.5, summary.getAvgFrameTime(), EPSILON);
         assertEquals(1, summary.getMinFrameTime());
         assertEquals(1000, summary.getMaxFrameTime());
