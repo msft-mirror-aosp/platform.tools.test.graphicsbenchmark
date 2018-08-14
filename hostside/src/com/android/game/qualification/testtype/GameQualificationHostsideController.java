@@ -21,7 +21,7 @@ import com.android.game.qualification.metric.GameQualificationMetricCollector;
 import com.android.game.qualification.proto.ResultDataProto;
 
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
-import com.android.ddmlib.testrunner.TestIdentifier;
+import com.android.tradefed.result.TestDescription;
 import com.android.game.qualification.ApkInfo;
 import com.android.game.qualification.ApkListXmlParser;
 import com.android.tradefed.config.Option;
@@ -134,8 +134,8 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
             // to put this call and the corresponding testRunEnd inside the for loop for now
             listener.testRunStarted("gamequalification", mApks.size());
 
-             // TODO: Migrate to TF TestDescription when available
-             TestIdentifier identifier = new TestIdentifier(CLASS, "run[" + apk.getName() + "]");
+            // TODO: Migrate to TF TestDescription when available
+            TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
 
             Map<String, String> testMetrics = new HashMap<>();
             // TODO: Populate metrics
