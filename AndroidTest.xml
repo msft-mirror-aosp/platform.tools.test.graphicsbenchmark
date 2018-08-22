@@ -9,7 +9,7 @@
     </target_preparer>
     <option name="enable-root" value="false" />
 
-    <metrics_collector class="com.android.game.qualification.metric.GameQualificationMetricCollector" />
+    <metrics_collector class="com.android.game.qualification.metric.GameQualificationFpsCollector" />
 
     <test class="com.android.game.qualification.testtype.GameQualificationHostsideController" />
 
