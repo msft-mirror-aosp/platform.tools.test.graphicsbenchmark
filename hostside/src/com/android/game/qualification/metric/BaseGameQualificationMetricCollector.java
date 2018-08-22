@@ -18,36 +18,43 @@ package com.android.game.qualification.metric;
 
 import com.android.annotations.Nullable;
 import com.android.game.qualification.ApkInfo;
-import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
-import com.android.tradefed.device.ITestDevice;
 import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.proto.ResultDataProto;
+import com.android.tradefed.device.ITestDevice;
+import com.android.tradefed.device.metric.BaseDeviceMetricCollector;
+import com.android.tradefed.device.metric.DeviceMetricData;
+import com.android.tradefed.invoker.IInvocationContext;
+import com.android.tradefed.metrics.proto.MetricMeasurement;
+import com.android.tradefed.result.TestDescription;
+
+import java.util.Map;
 
 public abstract class BaseGameQualificationMetricCollector extends BaseDeviceMetricCollector {
     @Nullable
-    protected ApkInfo mTestApk;
+    private ApkInfo mTestApk;
     @Nullable
     protected CertificationRequirements mCertificationRequirements;
     protected ResultDataProto.Result mDeviceResultData;
     protected ITestDevice mDevice;
     private boolean mEnabled;
     private boolean mHasError;
-    private String mErrorMessage;
+    private String mErrorMessage = "";
 
     public void setDevice(ITestDevice device) {
         mDevice = device;
     }
 
+    @Nullable
+    protected ApkInfo getApkInfo() {
+        return mTestApk;
+    }
+
     public void setApkInfo(ApkInfo apk) {
-        synchronized(this) {
-            mTestApk = apk;
-        }
+        mTestApk = apk;
     }
 
     public void setCertificationRequirements(@Nullable CertificationRequirements requirements) {
-        synchronized(this) {
-            mCertificationRequirements = requirements;
-        }
+        mCertificationRequirements = requirements;
     }
 
     public void setDeviceResultData(ResultDataProto.Result resultData) {
@@ -55,21 +62,15 @@ public abstract class BaseGameQualificationMetricCollector extends BaseDeviceMet
     }
 
     public boolean hasError() {
-        synchronized(this) {
-            return mHasError;
-        }
+        return mHasError;
     }
 
     protected void setHasError(boolean hasError) {
-        synchronized(this) {
-            mHasError = hasError;
-        }
+        mHasError = hasError;
     }
 
     public String getErrorMessage() {
-        synchronized (this) {
-            return mErrorMessage;
-        }
+        return mErrorMessage;
     }
 
     protected void setErrorMessage(String msg) {
@@ -86,5 +87,85 @@ public abstract class BaseGameQualificationMetricCollector extends BaseDeviceMet
 
     public void disable() {
         mEnabled = false;
+    }
+
+    // If an exception is thrown, hasError() must return true in order for the host controller to
+    // recognize an error has occurred.  Make onTestStart and onTestEnd final to ensure child
+    // classes do not forget to call setHasError(true).  Child classes should override onStart and
+    // onEnd instead.
+
+    @Override
+    public final void onTestStart(DeviceMetricData testData) {
+        super.onTestStart(testData);
+        try {
+            onStart(testData);
+        } catch (Exception e) {
+            setHasError(true);
+            if (getErrorMessage().isEmpty()) {
+                setErrorMessage(e.getMessage());
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public final void onTestEnd(
+            DeviceMetricData testData,
+            Map<String, MetricMeasurement.Metric> currentTestCaseMetrics) {
+        super.onTestEnd(testData, currentTestCaseMetrics);
+        try {
+            onEnd(testData, currentTestCaseMetrics);
+        } catch (Exception e) {
+            setHasError(true);
+            if (getErrorMessage().isEmpty()) {
+                setErrorMessage(e.getMessage());
+            }
+            throw e;
+        }
+    }
+
+    protected void onStart(DeviceMetricData testData) {
+        // Do nothing.
+    }
+
+    protected void onEnd(
+            DeviceMetricData testData,
+            Map<String, MetricMeasurement.Metric> currentTestCaseMetrics) {
+        // Do nothing.
+    }
+
+
+    // Finalize all other methods in the interface to prevent override.  Feel free to make
+    // modification if necessary, but ensure that hasError() will return true when Exception is
+    // thrown.
+
+    @Override
+    public final void testModuleStarted(IInvocationContext moduleContext) {
+        super.testModuleStarted(moduleContext);
+    }
+
+    @Override
+    public final void testModuleEnded() {
+        super.testModuleEnded();
+    }
+
+    @Override
+    public final void testRunStarted(String runName, int testCount, int attemptNumber) {
+        super.testRunStarted(runName, testCount , attemptNumber);
+    }
+
+    @Override
+    public final void testRunEnded(long elapsedTimeMillis, Map<String, String> runMetrics) {
+        super.testRunEnded(elapsedTimeMillis, runMetrics);
+    }
+
+    @Override
+    public final void testEnded(TestDescription test, Map<String, String> testMetrics) {
+        super.testEnded(test, testMetrics);
+    }
+
+    @Override
+    public final void testEnded(TestDescription test, long endTime, Map<String, String> testMetrics) {
+        super.testEnded(test, endTime, testMetrics);
     }
 }

@@ -245,18 +245,20 @@ public class GameQualificationHostsideController implements
             } else {
                 runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
                 ResultDataProto.Result resultData = retrieveResultData();
-
+                apkTestPassed = true;
                 for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
                     collector.setDeviceResultData(resultData);
-
-                    if (collector.hasError()) {
-                        listener.testFailed( identifier, collector.getErrorMessage());
-                    } else {
-                        apkTestPassed = true;
-                    }
                 }
             }
             listener.testEnded(identifier, new HashMap<String, MetricMeasurement.Metric>());
+            if (apkTestPassed) {
+                for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                    if (collector.hasError()) {
+                        listener.testFailed(identifier, collector.getErrorMessage());
+                        apkTestPassed = false;
+                    }
+                }
+            }
 
             for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
                 collector.disable();
