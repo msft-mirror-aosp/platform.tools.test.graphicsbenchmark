@@ -18,8 +18,7 @@ include $(CLEAR_VARS)
 
 LOCAL_PACKAGE_NAME := GameQualificationJavaTestCases
 LOCAL_SDK_VERSION := 26  # Oreo
-LOCAL_STATIC_JAVA_LIBRARIES := android-support-test
-LOCAL_JAVA_LIBRARIES := android.test.runner.stubs
+LOCAL_STATIC_JAVA_LIBRARIES := android-support-test repackaged.android.test.base
 LOCAL_MODULE_TAGS := tests
 LOCAL_COMPATIBILITY_SUITE := device-tests
 LOCAL_SRC_FILES := $(call all-java-files-under, src)
