@@ -22,6 +22,9 @@
     <test class="com.android.tradefed.testtype.InstrumentationTest" >
         <option name="package" value="com.android.game.qualification.tests" />
     </test>
+    <test class="com.android.tradefed.testtype.HostTest" >
+      <option name="class" value="com.android.game.qualification.testtype.FunctionalTests" />
+    </test>
 
     <result_reporter class="com.android.game.qualification.reporter.GameQualificationResultReporter"/>
 </configuration>
