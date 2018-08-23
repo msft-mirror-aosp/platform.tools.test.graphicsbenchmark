@@ -8,7 +8,7 @@ $ . build/make/envsetup.sh
 $ lunch 2				# generic aosp arm64 eng build
 $ mmma tools/tradefederation/core tools/test/graphicsbenchmark
 
-To run, from tools/test/graphicsbenchmark dir:
+To run, ensure that `adb` and `aapt` are available on your path, and run from tools/test/graphicsbenchmark dir:
 
 $ tradefed.sh run commandAndExit AndroidTest.xml
 

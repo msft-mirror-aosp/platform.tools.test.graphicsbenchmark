@@ -4,8 +4,9 @@
         <option name="force-skip-system-props" value="true" /> <!-- avoid restarting device -->
         <option name="screen-always-on" value="on" />
     </target_preparer>
-    <target_preparer class="com.android.tradefed.targetprep.InstallBuildEnvApkSetup">
-        <option name="apk-name" value="GameQualificationTestCases.apk" />
+    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
+        <option name="test-file-name" value="GameQualificationTestCases.apk" />
+        <option name="cleanup-apks" value="true" />
     </target_preparer>
     <option name="enable-root" value="false" />
 
@@ -14,8 +15,9 @@
     <test class="com.android.game.qualification.testtype.GameQualificationHostsideController" />
 
     <!-- Java functional tests-->
-    <target_preparer class="com.android.tradefed.targetprep.InstallBuildEnvApkSetup">
-        <option name="apk-name" value="GameQualificationJavaTestCases.apk" />
+    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
+        <option name="test-file-name" value="GameQualificationJavaTestCases.apk" />
+        <option name="cleanup-apks" value="true" />
     </target_preparer>
     <test class="com.android.tradefed.testtype.InstrumentationTest" >
         <option name="package" value="com.android.game.qualification.tests" />
