@@ -5,7 +5,7 @@
         <option name="screen-always-on" value="on" />
     </target_preparer>
     <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
-        <option name="test-file-name" value="GameQualificationTestCases.apk" />
+        <option name="test-file-name" value="GameQualificationDevice.apk" />
         <option name="cleanup-apks" value="true" />
     </target_preparer>
     <option name="enable-root" value="false" />
