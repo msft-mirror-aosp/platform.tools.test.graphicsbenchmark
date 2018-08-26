@@ -119,7 +119,17 @@ public class GameQualificationHostsideController implements
 
     private String getApkDir() {
         if (mApkDir == null) {
-            mApkDir = System.getenv("ANDROID_PRODUCT_OUT") + "/data/app";
+            String out = System.getenv("ANDROID_PRODUCT_OUT");
+            if (out != null) {
+                CLog.i("--apk-dir was not set, looking in ANDROID_PRODUCT_OUT(%s) for apk files.",
+                        out);
+                mApkDir = out + "/data/app";
+            } else {
+                CLog.i("--apk-dir and ANDROID_PRODUCT_OUT was not set, looking in current "
+                        + "directory(%s) for apk files.",
+                        new File(".").getAbsolutePath());
+                mApkDir = ".";
+            }
         }
         return mApkDir;
     }
