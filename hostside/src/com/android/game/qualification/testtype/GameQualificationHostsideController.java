@@ -16,20 +16,33 @@
 
 package com.android.game.qualification.testtype;
 
-import com.android.game.qualification.ResultData;
-import com.android.game.qualification.metric.GameQualificationMetricCollector;
-import com.android.game.qualification.proto.ResultDataProto;
-
+import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
-import com.android.tradefed.result.TestDescription;
 import com.android.game.qualification.ApkInfo;
-import com.android.game.qualification.ApkListXmlParser;
+import com.android.game.qualification.CertificationRequirements;
+import com.android.game.qualification.GameCoreConfiguration;
+import com.android.game.qualification.GameCoreConfigurationXmlParser;
+import com.android.game.qualification.ResultData;
+import com.android.game.qualification.metric.BaseGameQualificationMetricCollector;
+import com.android.game.qualification.proto.ResultDataProto;
+import com.android.game.qualification.reporter.GameQualificationResultReporter;
+import com.android.tradefed.config.IConfiguration;
+import com.android.tradefed.config.IConfigurationReceiver;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.device.ITestDevice;
+import com.android.tradefed.device.metric.IMetricCollector;
+import com.android.tradefed.device.metric.IMetricCollectorReceiver;
+import com.android.tradefed.invoker.IInvocationContext;
+import com.android.tradefed.log.LogUtil.CLog;
+import com.android.tradefed.metrics.proto.MetricMeasurement;
 import com.android.tradefed.result.CollectingTestListener;
 import com.android.tradefed.result.ITestInvocationListener;
+import com.android.tradefed.result.InputStreamSource;
+import com.android.tradefed.result.LogDataType;
+import com.android.tradefed.result.TestDescription;
 import com.android.tradefed.testtype.IDeviceTest;
+import com.android.tradefed.testtype.IInvocationContextReceiver;
 import com.android.tradefed.testtype.IRemoteTest;
 import com.android.tradefed.testtype.IShardableTest;
 
@@ -38,23 +51,31 @@ import com.google.common.io.Files;
 
 import org.xml.sax.SAXException;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import javax.imageio.ImageIO;
 import javax.xml.parsers.ParserConfigurationException;
 
-public class GameQualificationHostsideController implements IShardableTest, IDeviceTest {
+public class GameQualificationHostsideController implements
+        IShardableTest,
+        IDeviceTest,
+        IMetricCollectorReceiver,
+        IInvocationContextReceiver,
+        IConfigurationReceiver {
     // Package and class of the device side test.
     private static final String PACKAGE = "com.android.game.qualification.device";
     private static final String CLASS = PACKAGE + ".GameQualificationTest";
@@ -64,8 +85,14 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
     private static final long DEFAULT_MAX_TIMEOUT_TO_OUTPUT_MS = 10 * 60 * 1000L; //10min
 
     private ITestDevice mDevice;
+    private IConfiguration mConfiguration = null;
+    private GameCoreConfiguration mGameCoreConfiguration = null;
     private List<ApkInfo> mApks = null;
     private File mApkInfoFile;
+    private Collection<IMetricCollector> mCollectors;
+    private GameQualificationResultReporter mResultReporter;
+    private IInvocationContext mContext;
+    private ArrayList<BaseGameQualificationMetricCollector> mAGQMetricCollectors;
 
     @Override
     public void setDevice(ITestDevice device) {
@@ -92,9 +119,40 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
 
     private String getApkDir() {
         if (mApkDir == null) {
-            mApkDir = System.getenv("ANDROID_PRODUCT_OUT") + "/data/app";
+            String out = System.getenv("ANDROID_PRODUCT_OUT");
+            if (out != null) {
+                CLog.i("--apk-dir was not set, looking in ANDROID_PRODUCT_OUT(%s) for apk files.",
+                        out);
+                mApkDir = out + "/data/app";
+            } else {
+                CLog.i("--apk-dir and ANDROID_PRODUCT_OUT was not set, looking in current "
+                        + "directory(%s) for apk files.",
+                        new File(".").getAbsolutePath());
+                mApkDir = ".";
+            }
         }
         return mApkDir;
+    }
+
+    @Override
+    public void setMetricCollectors(List<IMetricCollector> list) {
+        mCollectors = list;
+        mAGQMetricCollectors = new ArrayList<>();
+        for (IMetricCollector collector : list) {
+            if (collector instanceof BaseGameQualificationMetricCollector) {
+                mAGQMetricCollectors.add((BaseGameQualificationMetricCollector) collector);
+            }
+        }
+    }
+
+    @Override
+    public void setInvocationContext(IInvocationContext iInvocationContext) {
+        mContext = iInvocationContext;
+    }
+
+    @Override
+    public void setConfiguration(IConfiguration configuration) {
+        mConfiguration = configuration;
     }
 
     @Override
@@ -112,6 +170,8 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
             GameQualificationHostsideController shard = new GameQualificationHostsideController();
             shard.mApks = apkInfo;
             shard.mApkDir = getApkDir();
+            shard.mApkInfoFileName = mApkInfoFileName;
+            shard.mApkInfoFile = mApkInfoFile;
 
             shards.add(shard);
         }
@@ -120,48 +180,165 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
 
     @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
-        Map<String, String> runMetrics = new HashMap<>();
+        // Find result reporter
+        if (mResultReporter == null) {
+            for (ITestInvocationListener testListener
+                    : mConfiguration.getTestInvocationListeners()) {
+                if (testListener instanceof GameQualificationResultReporter) {
+                    mResultReporter = (GameQualificationResultReporter) testListener;
+                }
+            }
+        }
+
+        assert !(mAGQMetricCollectors.isEmpty());
+        for (IMetricCollector collector : mCollectors) {
+            listener = collector.init(mContext, listener);
+        }
+
+        for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+            collector.setDevice(getDevice());
+        }
+
+        HashMap<String, MetricMeasurement.Metric> runMetrics = new HashMap<>();
 
         initApkList();
         getDevice().pushFile(mApkInfoFile, ApkInfo.APK_LIST_LOCATION);
+        String serial = getDevice().getSerialNumber();
+
+        long startTime = System.currentTimeMillis();
+        listener.testRunStarted("gamequalification", mApks.size());
 
         for (ApkInfo apk : mApks) {
             File apkFile = findApk(apk.getFileName());
-            getDevice().installPackage(apkFile, true);
-            GameQualificationMetricCollector.setAppLayerName(apk);
+            RunScriptResult setupResult = RunScriptResult.SUCCESS;
+            if (apk.getScript() != null) {
+                setupResult = runSetupScript(apk, serial);
+            }
+            if (apkFile != null && !setupResult.failed) {
+                CLog.i("Installing %s on %s.", apkFile.getName(), getDevice().getSerialNumber());
+                getDevice().installPackage(apkFile, true);
+            }
 
-            // Might seem counter-intuitive, but the easiest way to get per-package results is
-            // to put this call and the corresponding testRunEnd inside the for loop for now
-            listener.testRunStarted("gamequalification", mApks.size());
+            for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                collector.setApkInfo(apk);
+                collector.setCertificationRequirements(
+                        mGameCoreConfiguration.findCertificationRequirements(apk.getName()));
+                collector.enable();
+            }
 
-            // TODO: Migrate to TF TestDescription when available
+            // APK Test.
             TestDescription identifier = new TestDescription(CLASS, "run[" + apk.getName() + "]");
-
-            Map<String, String> testMetrics = new HashMap<>();
-            // TODO: Populate metrics
-
+            if (mResultReporter != null) {
+                CertificationRequirements req =
+                        mGameCoreConfiguration.findCertificationRequirements(apk.getName());
+                if (req != null) {
+                    mResultReporter.putRequirements(identifier, req);
+                }
+            }
             listener.testStarted(identifier);
-
-            if (apkFile == null) {
+            boolean apkTestPassed = false;
+            if (getDevice().getKeyguardState().isKeyguardShowing()) {
+                listener.testFailed(
+                        identifier,
+                "Unable to unlock device: " + getDevice().getDeviceDescriptor());
+            } else if (apkFile == null) {
                 listener.testFailed(
                         identifier,
                         String.format(
-                                "Missing APK.  Unable to find %s in %s.",
+                                "Missing APK.  Unable to find %s in %s.\n",
                                 apk.getFileName(),
                                 getApkDir()));
+            } else if (setupResult.failed) {
+                listener.testFailed(
+                        identifier,
+                        "Execution of setup script returned non-zero value:\n" + setupResult.output);
             } else {
                 runDeviceTests(PACKAGE, CLASS, "run[" + apk.getName() + "]");
+                ResultDataProto.Result resultData = retrieveResultData();
+                apkTestPassed = true;
+                for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                    collector.setDeviceResultData(resultData);
+                }
+            }
+            listener.testEnded(identifier, new HashMap<String, MetricMeasurement.Metric>());
+            if (apkTestPassed) {
+                for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                    if (collector.hasError()) {
+                        listener.testFailed(identifier, collector.getErrorMessage());
+                        apkTestPassed = false;
+                    }
+                }
             }
 
-            listener.testEnded(identifier, testMetrics);
+            for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                collector.disable();
+            }
 
-            ResultDataProto.Result resultData = retrieveResultData();
-            GameQualificationMetricCollector.setDeviceResultData(resultData);
-
-            listener.testRunEnded(0, runMetrics);
-
+            if (apkTestPassed) {
+                // Screenshot test.
+                TestDescription screenshotTestId =
+                        new TestDescription(CLASS, "screenshotTest[" + apk.getName() + "]");
+                listener.testStarted(screenshotTestId);
+                try {
+                    checkScreenshot(listener, screenshotTestId);
+                } catch (DeviceNotAvailableException e) {
+                    listener.testFailed(screenshotTestId, e.getMessage());
+                }
+                listener.testEnded(
+                        screenshotTestId, new HashMap<String, MetricMeasurement.Metric>());
+            }
             getDevice().uninstallPackage(apk.getPackageName());
         }
+        listener.testRunEnded(System.currentTimeMillis() - startTime, runMetrics);
+
+    }
+
+    private static class RunScriptResult {
+        private static RunScriptResult SUCCESS = new RunScriptResult(false, "");
+
+        private boolean failed;
+        private String output;
+
+        public RunScriptResult(boolean failed, String output) {
+            this.failed = failed;
+            this.output = output;
+        }
+    }
+
+    /**
+     * Execute setup script defined by the ApkInfo.
+     *
+     * @param apk ApkInfo.
+     * @param deviceSerial Serial number of the device to be executed on.
+     * @return Output string
+     */
+    private RunScriptResult runSetupScript(ApkInfo apk, String deviceSerial) {
+        String cmd = apk.getScript();
+        CLog.i(
+                "Executing command: " + cmd + "\n"
+                        + "Working directory: " + mApkInfoFile.getParent());
+        try {
+            ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
+            pb.environment().put("ANDROID_SERIAL", deviceSerial);
+            pb.directory(mApkInfoFile.getParentFile());
+            pb.redirectErrorStream(true);
+
+            Process p = pb.start();
+            boolean finished = p.waitFor(30, TimeUnit.MINUTES);
+            if (!finished || p.exitValue() != 0) {
+                ByteArrayOutputStream os = new ByteArrayOutputStream();
+                ByteStreams.copy(p.getInputStream(), os);
+                String output = os.toString(StandardCharsets.UTF_8.name());
+                if (!finished) {
+                    output += "\n***TIMEOUT waiting for script to complete.***";
+                    p.destroy();
+                }
+                return new RunScriptResult(true, output);
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return RunScriptResult.SUCCESS;
     }
 
     private ResultDataProto.Result retrieveResultData() throws DeviceNotAvailableException {
@@ -169,8 +346,7 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
 
         if (resultFile != null) {
             try (InputStream inputStream = new FileInputStream(resultFile)) {
-                ResultDataProto.Result data = ResultDataProto.Result.parseFrom(inputStream);
-                return data;
+                return ResultDataProto.Result.parseFrom(inputStream);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -223,16 +399,56 @@ public class GameQualificationHostsideController implements IShardableTest, IDev
                 }
             }
         }
-        ApkListXmlParser parser = new ApkListXmlParser();
+        GameCoreConfigurationXmlParser parser = new GameCoreConfigurationXmlParser();
         try {
-            mApks = parser.parse(mApkInfoFile);
+            mGameCoreConfiguration = parser.parse(mApkInfoFile);
+            mApks = mGameCoreConfiguration.getApkInfo();
         } catch (IOException | ParserConfigurationException | SAXException e) {
             throw new RuntimeException(e);
         }
     }
 
+    /** Check if an image is black. */
+    @VisibleForTesting
+    static boolean isImageBlack(InputStream stream) throws IOException {
+        BufferedImage img = ImageIO.read(stream);
+        for (int i = 0; i < img.getWidth(); i++) {
+            // Only check the middle portion of the image to avoid status bar.
+            for (int j = img.getHeight() / 4; j < img.getHeight() * 3 / 4; j++) {
+                int color = img.getRGB(i, j);
+                // Check if pixel is non-black and not fully transparent.
+                if ((color & 0x00ffffff) != 0 && (color >> 24) != 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
-    // TODO: Migrate to use BaseHostJUnit4Test when available.
+    private void checkScreenshot(ITestInvocationListener listener, TestDescription testId)
+            throws DeviceNotAvailableException {
+        try (InputStreamSource screenSource = mDevice.getScreenshot()) {
+            listener.testLog(String.format(
+                    "screenshot-%s",
+                    testId.getTestName()),
+                    LogDataType.PNG,
+                    screenSource);
+            try (InputStream stream = screenSource.createInputStream()) {
+                stream.reset();
+                if (isImageBlack(stream)) {
+                    listener.testFailed(
+                            testId,
+                            "A screenshot was taken just after metric collection and it was black.");
+                }
+            }
+        } catch (IOException e) {
+            listener.testFailed(
+                    testId, "Failed reading screenshot data:\n" + e.getMessage());
+        }
+    }
+
+    // TODO: Migrate to use BaseHostJUnit4Test when possible.  It is not currently possible because
+    // the IInvocationContext is private.
     /**
      * Method to run an installed instrumentation package.
      *
