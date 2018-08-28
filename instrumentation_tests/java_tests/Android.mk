@@ -12,35 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Make a mock compatibility suite to test
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES := $(call all-java-files-under, src)
-LOCAL_JAVA_RESOURCE_DIRS := res
-
-LOCAL_MODULE := GameQualificationHost
-
-LOCAL_MODULE_TAGS := optional
-
-LOCAL_JAVA_LIBRARIES := tradefed GameQualificationHelperHost
-
-LOCAL_COMPATIBILITY_SUITE := general-tests
-
-include $(BUILD_HOST_JAVA_LIBRARY)
-
--include tools/tradefederation/core/error_prone_rules.mk
-
-include $(CLEAR_VARS)
-
-LOCAL_MODULE := GameQualificationHostTest
+LOCAL_PACKAGE_NAME := GameQualificationJavaTestCases
+LOCAL_SDK_VERSION := 26  # Oreo
+LOCAL_STATIC_JAVA_LIBRARIES := android-support-test repackaged.android.test.base
 LOCAL_MODULE_TAGS := tests
-LOCAL_SRC_FILES := $(call all-java-files-under, test)
-LOCAL_JAVA_LIBRARIES := GameQualificationHost GameQualificationHelperHost junit-host tradefed
-LOCAL_COMPATIBILITY_SUITE := general-tests
+LOCAL_COMPATIBILITY_SUITE := device-tests
+LOCAL_SRC_FILES := $(call all-java-files-under, src)
 
-include $(BUILD_HOST_JAVA_LIBRARY)
+include $(BUILD_PACKAGE)
 
 # Build all sub-directories
 include $(call all-makefiles-under,$(LOCAL_PATH))
