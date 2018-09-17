@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.game.qualification.testtype;
+package com.android.game.qualification.test;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -25,14 +25,13 @@ import org.junit.runners.JUnit4;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
 @RunWith(JUnit4.class)
-public class GameQualificationHostsideControllerTest {
+public class PerformanceTestTest {
 
     private InputStream createImage(int color) throws IOException {
         int width = 10;
@@ -51,18 +50,18 @@ public class GameQualificationHostsideControllerTest {
     @Test
     public void testBlackImage() throws IOException {
         InputStream img = createImage(0xff000000);
-        assertTrue(GameQualificationHostsideController.isImageBlack(img));
+        assertTrue(PerformanceTest.isImageBlack(img));
     }
 
     @Test
     public void testTransparentImage() throws IOException {
         InputStream img = createImage(0x00ffffff);
-        assertTrue(GameQualificationHostsideController.isImageBlack(img));
+        assertTrue(PerformanceTest.isImageBlack(img));
     }
 
     @Test
     public void testAlmostBlackImage() throws IOException {
         InputStream img = createImage(0xff000001);
-        assertFalse(GameQualificationHostsideController.isImageBlack(img));
+        assertFalse(PerformanceTest.isImageBlack(img));
     }
 }
