@@ -18,7 +18,7 @@ package com.android.game.qualification.host;
 
 import com.android.game.qualification.metric.HistogramTest;
 import com.android.game.qualification.metric.MetricSummaryTest;
-import com.android.game.qualification.testtype.GameQualificationHostsideControllerTest;
+import com.android.game.qualification.test.PerformanceTestTest;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -28,7 +28,7 @@ import org.junit.runners.Suite.SuiteClasses;
 @SuiteClasses({
         HistogramTest.class,
         MetricSummaryTest.class,
-        GameQualificationHostsideControllerTest.class
+        PerformanceTestTest.class
 })
 public class UnitTests {
     // empty on purpose
