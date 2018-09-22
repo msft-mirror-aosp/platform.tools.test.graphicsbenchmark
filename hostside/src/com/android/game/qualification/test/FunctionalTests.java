@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.game.qualification.testtype;
+package com.android.game.qualification.test;
 import org.junit.runner.RunWith;
 import org.junit.Test;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
