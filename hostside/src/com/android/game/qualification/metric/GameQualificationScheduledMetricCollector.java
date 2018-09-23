@@ -62,7 +62,7 @@ public abstract class GameQualificationScheduledMetricCollector
                 new TimerTask() {
                     @Override
                     public void run() {
-                        synchronized (this) {
+                        synchronized (GameQualificationScheduledMetricCollector.this) {
                             try {
                                 collect();
                             } catch (Exception e) {
