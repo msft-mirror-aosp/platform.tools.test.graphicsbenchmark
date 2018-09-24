@@ -75,17 +75,19 @@ public class PerformanceTest {
     }
 
     public enum Test {
-        SETUP("setUp", PerformanceTest::setUp),
-        RUN("run", PerformanceTest::run),
-        SCREENSHOT("screenshotTest", PerformanceTest::testScreenshot),
-        TEARDOWN("tearDown", PerformanceTest::tearDown);
+        SETUP("setUp", PerformanceTest::setUp, false),
+        RUN("run", PerformanceTest::run, true),
+        SCREENSHOT("screenshotTest", PerformanceTest::testScreenshot, false),
+        TEARDOWN("tearDown", PerformanceTest::tearDown, false);
 
         private String mName;
         private TestMethod mMethod;
+        private boolean mEnableCollectors;
 
-        Test(String name, TestMethod method) {
+        Test(String name, TestMethod method, boolean enableCollectors) {
             mName = name;
             mMethod = method;
+            mEnableCollectors = enableCollectors;
         }
 
         public String getName() {
@@ -94,6 +96,10 @@ public class PerformanceTest {
 
         public TestMethod getMethod() {
             return mMethod;
+        }
+
+        public boolean isEnableCollectors() {
+            return mEnableCollectors;
         }
     }
 
@@ -156,10 +162,6 @@ public class PerformanceTest {
 
     private void run() throws DeviceNotAvailableException {
         Assume.assumeTrue(allTestsPassed);
-
-        for (BaseGameQualificationMetricCollector collector : mCollectors) {
-            collector.enable();
-        }
         // APK Test.
         assertFalse(
                 "Unable to unlock device: " + mDevice.getDeviceDescriptor(),

@@ -17,6 +17,7 @@
 package com.android.game.qualification.testtype;
 
 import com.android.game.qualification.ApkInfo;
+import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.GameCoreConfiguration;
 import com.android.game.qualification.GameCoreConfigurationXmlParser;
 import com.android.game.qualification.metric.BaseGameQualificationMetricCollector;
@@ -205,8 +206,19 @@ public class GameQualificationHostsideController implements
                         mGameCoreConfiguration.findCertificationRequirements(apk.getName()));
             }
             for (PerformanceTest.Test t : PerformanceTest.Test.values()) {
-
                 TestDescription identifier = new TestDescription(CLASS, t.getName() + "[" + apk.getName() + "]");
+                if (t.isEnableCollectors()) {
+                    for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                        collector.enable();
+                    }
+                    if (mResultReporter != null) {
+                        CertificationRequirements req =
+                                mGameCoreConfiguration.findCertificationRequirements(apk.getName());
+                        if (req != null) {
+                            mResultReporter.putRequirements(identifier, req);
+                        }
+                    }
+                }
                 listener.testStarted(identifier);
                 try {
                     t.getMethod().run(test);
@@ -218,11 +230,13 @@ public class GameQualificationHostsideController implements
                 }
                 listener.testEnded(identifier, new HashMap<String, MetricMeasurement.Metric>());
 
-                for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
-                    if (collector.hasError()) {
-                        listener.testFailed(identifier, collector.getErrorMessage());
+                if (t.isEnableCollectors()) {
+                    for (BaseGameQualificationMetricCollector collector : mAGQMetricCollectors) {
+                        if (collector.hasError()) {
+                            listener.testFailed(identifier, collector.getErrorMessage());
+                        }
+                        collector.disable();
                     }
-                    collector.disable();
                 }
             }
         }
