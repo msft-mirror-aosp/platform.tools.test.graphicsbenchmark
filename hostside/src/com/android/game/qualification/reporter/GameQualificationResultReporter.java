@@ -56,6 +56,7 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
     private List<Throwable> invocationFailures = new ArrayList<>();
     private List<LogFile> mLogFiles = new ArrayList<>();
     private ILogSaver mLogSaver;
+    private int mTotalAllocated = 0;
 
     public void putRequirements(TestDescription testId, CertificationRequirements requirements) {
         mRequirements.put(testId, requirements);
@@ -66,7 +67,6 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
         super.invocationFailed(cause);
         invocationFailures.add(cause);
     }
-
     /**
      * Collect metrics produces by
      * {@link GameQualificationFpsCollector}.
@@ -75,10 +75,12 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
     public void testEnded(TestDescription testId, long elapsedTime, HashMap<String, Metric> metrics) {
         super.testEnded(testId, elapsedTime, metrics);
         if (!metrics.isEmpty()) {
-            MetricSummary summary = MetricSummary.parseRunMetrics(getInvocationContext(), metrics);
-            if (summary != null) {
-                summaries.put(testId, summary);
-            }
+                MetricSummary summary = MetricSummary.parseRunMetrics(getInvocationContext(), metrics);
+                if (summary != null) {
+                    summaries.put(testId, summary);
+                } else if (metrics.containsKey("memory_allocated")) {
+                    mTotalAllocated = (int) metrics.get("memory_allocated").getMeasurements().getSingleInt();
+                }
         }
     }
 
@@ -157,6 +159,11 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
         for (Map.Entry<TestDescription, MetricSummary> entry : summaries.entrySet()) {
             sb.append(String.format("\n%s Metrics:\n%s\n", entry.getKey(), entry.getValue()));
         }
+
+        // Print memory allocation metrics
+        sb.append("Total Memory Allocated During Allocation Stress Test: ");
+        sb.append(mTotalAllocated);
+        sb.append("\n\n");
 
         // Determine certification level.
         sb.append("Certification:\n");
