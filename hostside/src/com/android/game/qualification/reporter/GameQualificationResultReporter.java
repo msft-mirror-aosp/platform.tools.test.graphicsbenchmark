@@ -180,6 +180,17 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
                 for (TestDescription test : testRunResult.getFailedTests()) {
                     sb.append('\t');
                     sb.append(test.toString());
+
+                    // Prints the first line of the stacktrace.
+                    TestResult result = testRunResult.getTestResults().get(test);
+                    String stacktrace = result.getStackTrace();
+                    if (!stacktrace.isEmpty()) {
+                        sb.append("\n\t\t");
+                        sb.append(
+                                stacktrace.contains("\n")
+                                        ? stacktrace.split("\n", 2)[0]
+                                        : stacktrace);
+                    }
                     sb.append('\n');
                 }
             }
