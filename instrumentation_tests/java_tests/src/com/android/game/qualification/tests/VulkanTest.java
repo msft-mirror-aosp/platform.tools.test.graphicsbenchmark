@@ -32,7 +32,9 @@ public class VulkanTest {
     @Test
     public void support1_1() {
         PackageManager pm = InstrumentationRegistry.getTargetContext().getPackageManager();
-        assertTrue(pm.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, VULKAN_1_1));
+        assertTrue(
+                "Device must support Vulkan 1.1",
+                pm.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, VULKAN_1_1));
     }
 }
 
