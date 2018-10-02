@@ -64,7 +64,11 @@ public class MetricSummary {
     @Nullable
     public static MetricSummary parseRunMetrics(
             IInvocationContext context, HashMap<String, Metric> metrics) {
-        int loopCount = (int) metrics.get("loop_count").getMeasurements().getSingleInt();
+        int loopCount = 0;
+        if (metrics.containsKey("loop_count")) {
+            loopCount = (int) metrics.get("loop_count").getMeasurements().getSingleInt();
+        }
+
         if (loopCount == 0) {
             return null;
         }
