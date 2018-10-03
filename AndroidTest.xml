@@ -26,5 +26,13 @@
       <option name="class" value="com.android.game.qualification.test.FunctionalTests" />
     </test>
 
+    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
+        <option name="test-file-name" value="GameQualificationAllocstress.apk" />
+        <option name="cleanup-apks" value="true" />
+    </target_preparer>
+    <test class="com.android.tradefed.testtype.HostTest" >
+      <option name="class" value="com.android.game.qualification.test.MemoryTests" />
+    </test>
+
     <result_reporter class="com.android.game.qualification.reporter.GameQualificationResultReporter"/>
 </configuration>
