@@ -31,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Summary of frame time metrics data.
@@ -42,15 +43,13 @@ public class MetricSummary {
     }
 
     private int loopCount;
-    private double jankRate;
     private long loadTimeMs;
     private Map<TimeType, List<LoopSummary>> summaries;
 
     private MetricSummary(
             int loopCount,
-            double jankRate,
-            long loadTimeMs, Map<TimeType, List<LoopSummary>> summaries) {
-        this.jankRate = jankRate;
+            long loadTimeMs,
+            Map<TimeType, List<LoopSummary>> summaries) {
         this.loopCount = loopCount;
         this.loadTimeMs = loadTimeMs;
         this.summaries = summaries;
@@ -72,24 +71,22 @@ public class MetricSummary {
         for (TimeType type : TimeType.values()) {
             summaries.put(type, new ArrayList<>());
             for (int i = 0; i < loopCount; i++) {
-                LoopSummary loopSummary = new LoopSummary();
-                loopSummary.parseRunMetrics(context, type, i, metrics);
+                LoopSummary loopSummary = LoopSummary.parseRunMetrics(context, type, i, metrics);
                 summaries.get(type).add(loopSummary);
             }
         }
         return new MetricSummary(
                 loopCount,
-                metrics.get("jank_rate").getMeasurements().getSingleDouble(),
                 metrics.get("load_time").getMeasurements().getSingleInt(),
                 summaries);
     }
 
-    public double getJankRate() {
-        return jankRate;
-    }
-
     public long getLoadTimeMs() {
         return loadTimeMs;
+    }
+
+    public List<LoopSummary> getLoopSummaries() {
+        return summaries.get(TimeType.PRESENT);
     }
 
     public void addToMetricData(DeviceMetricData runData) {
@@ -98,11 +95,6 @@ public class MetricSummary {
                 Metric.newBuilder()
                         .setType(DataType.PROCESSED)
                         .setMeasurements(Measurements.newBuilder().setSingleInt(loopCount)));
-        runData.addMetric(
-                "jank_rate",
-                Metric.newBuilder()
-                        .setType(DataType.PROCESSED)
-                        .setMeasurements(Measurements.newBuilder().setSingleDouble(getJankRate())));
         runData.addMetric(
                 "load_time",
                 Metric.newBuilder()
@@ -123,14 +115,13 @@ public class MetricSummary {
         if (o == null || getClass() != o.getClass()) return false;
         MetricSummary summary = (MetricSummary) o;
         return loopCount == summary.loopCount &&
-                jankRate == summary.jankRate &&
                 loadTimeMs == summary.loadTimeMs &&
                 Objects.equals(summaries, summary.summaries);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(loopCount, jankRate, loadTimeMs, summaries);
+        return Objects.hash(loopCount, loadTimeMs, summaries);
     }
 
     public String toString() {
@@ -138,7 +129,6 @@ public class MetricSummary {
         // Report primary metrics.
         sb.append("Summary\n");
         sb.append("-------\n");
-        sb.append(String.format("'Jank' rate: %.3f\n", getJankRate()));
         sb.append("Load time: ");
         if (getLoadTimeMs() == -1) {
             sb.append("unknown");
@@ -170,19 +160,17 @@ public class MetricSummary {
         return sb.toString();
     }
 
-    private static float msToNs(float value) {
-        return value * 1e6f;
+    private static long msToNs(float value) {
+        return (long) (value * 1e6f);
     }
 
     public static class Builder {
         @Nullable
         private CertificationRequirements mRequirements;
-        private double jankScore = 0;
         private long mVSyncPeriodNs;
         private int loopCount = 0;
         private long loadTimeMs = -1;
-        private long totalTimeNs = 0;
-        private Map<TimeType, List<LoopSummary>> summaries = new LinkedHashMap<>();
+        private Map<TimeType, List<LoopSummary.Builder>> summaries = new LinkedHashMap<>();
 
         public Builder(@Nullable CertificationRequirements requirements, long vSyncPeriodNs) {
             mRequirements = requirements;
@@ -192,9 +180,9 @@ public class MetricSummary {
             }
         }
 
-        private LoopSummary getLatestSummary(TimeType type) {
+        private LoopSummary.Builder getLatestSummary(TimeType type) {
             Preconditions.checkState(loopCount > 0, "First loop has not been started.");
-            List<LoopSummary> list = summaries.get(type);
+            List<LoopSummary.Builder> list = summaries.get(type);
             return list.get(list.size() - 1);
         }
 
@@ -203,41 +191,31 @@ public class MetricSummary {
         }
 
         public void addFrameTime(TimeType type, long frameTimeNs) {
-            if (type == TimeType.PRESENT) {
-                totalTimeNs += frameTimeNs;
-                if (mRequirements != null) {
-                    float targetFrameTime = msToNs(mRequirements.getFrameTime());
-                    long roundedFrameTimeNs =
-                            Math.round(frameTimeNs / (double)mVSyncPeriodNs) * mVSyncPeriodNs;
-                    if (roundedFrameTimeNs > targetFrameTime) {
-                        double score = (roundedFrameTimeNs - targetFrameTime) / targetFrameTime;
-                        jankScore += score;
-                    }
-                }
-            }
-            LoopSummary summary = getLatestSummary(type);
+            LoopSummary.Builder summary = getLatestSummary(type);
             summary.addFrameTime(frameTimeNs);
         }
 
         public void beginLoop() {
             loopCount++;
             for (TimeType type : TimeType.values()) {
-                summaries.get(type).add(new LoopSummary());
+                summaries.get(type).add(new LoopSummary.Builder(mRequirements, mVSyncPeriodNs));
             }
         }
 
         public void endLoop() {
-            for (TimeType type : TimeType.values()) {
-                getLatestSummary(type).processFrameTimes();
-            }
+            // Do nothing.
         }
 
         public MetricSummary build() {
-            return new MetricSummary(
-                    loopCount,
-                    jankScore * 1000000000 / totalTimeNs,  /* jank rate per second */
-                    loadTimeMs,
-                    summaries);
+            Map<TimeType, List<LoopSummary>> summaryMap = new HashMap<>();
+            for (Map.Entry<TimeType, List<LoopSummary.Builder>> entry : summaries.entrySet()) {
+                summaryMap.put(
+                        entry.getKey(),
+                        entry.getValue().stream()
+                                .map(LoopSummary.Builder::build)
+                                .collect(Collectors.toList()));
+            }
+            return new MetricSummary(loopCount, loadTimeMs, summaryMap);
         }
     }
 }
