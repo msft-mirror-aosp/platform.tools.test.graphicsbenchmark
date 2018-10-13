@@ -20,6 +20,7 @@ import com.android.ddmlib.Log.LogLevel;
 import com.android.ddmlib.testrunner.TestResult.TestStatus;
 import com.android.game.qualification.CertificationRequirements;
 import com.android.game.qualification.metric.GameQualificationFpsCollector;
+import com.android.game.qualification.metric.LoopSummary;
 import com.android.game.qualification.metric.MetricSummary;
 import com.android.tradefed.config.Option;
 import com.android.tradefed.metrics.proto.MetricMeasurement.Metric;
@@ -294,16 +295,35 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
                 text.append(" was executed, but performance metrics was ignored because "
                         + "certification requirements was not found.\n");
             } else {
-                if (metrics.getJankRate() > requirements.getJankRate()) {
-                    success = false;
-                    text.append("Jank rate for ");
-                    text.append(testId.getTestName());
-                    text.append(" is too high, actual: ");
-                    text.append(metrics.getJankRate());
-                    text.append(", target: ");
-                    text.append(requirements.getJankRate());
-                    text.append("\n");
+                List<LoopSummary> loopSummaries = metrics.getLoopSummaries();
+                // Fail if any loop fails the jank rate test.  If there are 3 or more loops, ignore
+                // the first and last loop.  Otherwise, check only the first loop.
+                int begin = loopSummaries.size() > 2 ? 1 : 0;
+                int end = loopSummaries.size() > 2 ? loopSummaries.size() - 1 : 1;
+                for (int i = begin; i < end; i++) {
+                    LoopSummary summary = loopSummaries.get(i);
+                    if (summary.getJankRate() > requirements.getJankRate()) {
+                        success = false;
+                        text.append(
+                                String.format(
+                                        "Jank rate for %s in loop %d is too high, actual: "
+                                                + "%f, target: %f\n",
+                                        testId.getTestName(),
+                                        i,
+                                        summary.getJankRate(),
+                                        requirements.getJankRate()));
+                        break;
+                    }
                 }
+
+                if (loopSummaries.size() == 2) {
+                    text.append("Warning: runtime specification allowed for exactly 2 loops to be "
+                            + "ran for ");
+                    text.append(testId.getTestName());
+                    text.append(".  Extending the runtime is recommended.");
+
+                }
+
                 if (requirements.getLoadTime() >= 0) {
                     if (metrics.getLoadTimeMs() == -1) {
                         success = false;

@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 
 import com.android.game.qualification.CertificationRequirements;
 import com.android.tradefed.device.metric.DeviceMetricData;
+import com.android.tradefed.invoker.IInvocationContext;
 import com.android.tradefed.invoker.InvocationContext;
 import com.android.tradefed.metrics.proto.MetricMeasurement;
 
@@ -45,7 +46,6 @@ public class MetricSummaryTest {
 
     @Test
     public void testConversion() {
-
         MetricSummary.Builder builder = new MetricSummary.Builder(TEST_REQUIREMENTS, 500_000_000);
         builder.beginLoop();
         builder.addFrameTime(PRESENT, 1);
@@ -66,17 +66,16 @@ public class MetricSummaryTest {
 
         MetricSummary summary = builder.build();
 
-        assertEquals(0.5f, summary.getJankRate(), EPSILON);
         assertEquals(42, summary.getLoadTimeMs());
 
-        DeviceMetricData runData = new DeviceMetricData(new InvocationContext());
+        IInvocationContext context = new InvocationContext();
+        DeviceMetricData runData = new DeviceMetricData(context);
         summary.addToMetricData(runData);
         HashMap<String, MetricMeasurement.Metric> metrics = new HashMap<>();
         runData.addToMetrics(metrics);
 
-        MetricSummary result = MetricSummary.parseRunMetrics(new InvocationContext(), metrics);
+        MetricSummary result = MetricSummary.parseRunMetrics(context, metrics);
         assertNotNull(result);
         assertEquals(summary, result);
-        assertEquals(summary.getJankRate(), result.getJankRate(), EPSILON);
     }
 }
