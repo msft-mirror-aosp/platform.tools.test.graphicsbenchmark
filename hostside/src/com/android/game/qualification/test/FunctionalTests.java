@@ -36,4 +36,15 @@ public class FunctionalTests extends BaseHostJUnit4Test {
         assertTrue(vulkanCapabilities.contains(GOOGLE_DISPLAY_TIMING_EXTENSION_NAME));
     }
 
+    @Test
+    public void testConfigHzHighEnough()
+        throws DeviceNotAvailableException {
+
+        /* Insist on the kernel tick rate being at least 250Hz. */
+
+        String output = getDevice().executeShellCommand("gzip -dc /proc/config.gz | grep CONFIG_HZ=");
+        assertTrue(output.contains("CONFIG_HZ="));
+        int tickRate = Integer.parseInt(output.split("\n")[0].split("=")[1]);
+        assertTrue("Kernel tick rate is " + tickRate + " but certification requires at least 250", tickRate >= 250);
+    }
 }
