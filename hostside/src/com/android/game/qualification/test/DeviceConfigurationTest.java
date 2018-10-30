@@ -15,27 +15,18 @@
  */
 
 package com.android.game.qualification.test;
-import org.junit.runner.RunWith;
-import org.junit.Test;
-import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
-import com.android.tradefed.testtype.DeviceJUnit4ClassRunner;
-import com.android.tradefed.device.DeviceNotAvailableException;
-import static org.junit.Assert.assertEquals;
+
 import static org.junit.Assert.assertTrue;
 
+import com.android.tradefed.device.DeviceNotAvailableException;
+import com.android.tradefed.testtype.DeviceJUnit4ClassRunner;
+import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
 @RunWith(DeviceJUnit4ClassRunner.class)
-public class FunctionalTests extends BaseHostJUnit4Test {
-
-    private final String GOOGLE_DISPLAY_TIMING_EXTENSION_NAME = "VK_GOOGLE_display_timing";
-
-    @Test
-    public void testExposesDisplayTimingExtension()
-        throws DeviceNotAvailableException {
-        String vulkanCapabilities = getDevice().executeShellCommand("cmd gpu vkjson");
-
-        assertTrue(vulkanCapabilities.contains(GOOGLE_DISPLAY_TIMING_EXTENSION_NAME));
-    }
-
+public class DeviceConfigurationTest extends BaseHostJUnit4Test {
     @Test
     public void testConfigHzHighEnough()
         throws DeviceNotAvailableException {
