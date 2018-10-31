@@ -16,10 +16,13 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
-gamecore_dist_host_jar := GameQualificationHelperHost GameQualificationHost
+gamecore_dist_host_jar := GameQualificationHelperHost GameQualificationHost truth-prebuilt
 gamecore_dist_host_jar_files := $(foreach m, $(gamecore_dist_host_jar), $(HOST_OUT_JAVA_LIBRARIES)/$(m).jar)
 
-gamecore_dist_test_apk := GameQualificationDevice GameQualificationSampleApp GameQualificationJavaTestCases
+gamecore_dist_test_exe := GameQualificationNativeTestCases
+gamecore_dist_test_exe_files := $(foreach m, $(gamecore_dist_test_exe), $(TARGET_OUT_TESTCASES)/$(m)/$(TARGET_ARCH)/$(m))
+
+gamecore_dist_test_apk := GameQualificationDevice GameQualificationSampleApp GameQualificationJavaTestCases GameQualificationAllocstress
 gamecore_dist_test_apk_files := $(foreach m, $(gamecore_dist_test_apk), $(TARGET_OUT_DATA_APPS)/$(m)/$(m).apk)
 
 gamecore_dist_intermediates := $(call intermediates-dir-for,PACKAGING,gamecore_dist,HOST,COMMON)
@@ -36,6 +39,7 @@ gamecore_dist_files := \
     $(LOCAL_PATH)/AndroidTest.xml \
     $(gamecore_dist_host_jar_files) \
     $(gamecore_dist_test_apk_files) \
+    $(gamecore_dist_test_exe_files) \
     $(tradefed_files)
 
 $(gamecore_dist_zip) : $(gamecore_dist_files)
