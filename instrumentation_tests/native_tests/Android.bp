@@ -28,4 +28,5 @@ cc_test {
     test_suites: [
         "device-tests",
     ],
+    pack_relocations: false
 }
