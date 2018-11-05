@@ -24,7 +24,7 @@ LOCAL_MODULE := GameQualificationHost
 
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_JAVA_LIBRARIES := tradefed GameQualificationHelperHost truth-prebuilt
+LOCAL_JAVA_LIBRARIES := tradefed GameQualificationHelperHost truth-prebuilt-host-jar
 
 LOCAL_STATIC_JAVA_LIBARIES = gson-prebuilt-jar
 
