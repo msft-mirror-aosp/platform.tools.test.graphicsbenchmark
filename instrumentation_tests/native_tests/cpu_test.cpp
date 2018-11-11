@@ -16,11 +16,13 @@
  */
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <cpu-features.h>
 #include <iostream>
 #include <unistd.h>
 #include <sched.h>
 #include <errno.h>
+#include <vector>
 
 TEST(cpu, sched_setaffinity) {
     int cpu_count =  android_getCpuCount();
@@ -30,6 +32,38 @@ TEST(cpu, sched_setaffinity) {
         CPU_SET(cpu, &set);
         int rc = sched_setaffinity(0, sizeof(cpu_set_t), &set);
         ASSERT_EQ(0, rc) << "sched_setaffinity failed. error = " << errno;
-        ASSERT_EQ(cpu, sched_getcpu());
+        ASSERT_EQ(cpu, sched_getcpu()) << "sched_setaffinity was not respected.";
+    }
+}
+
+TEST(cpu, sched_setaffinity_multiple_cpu) {
+    int cpu_count =  android_getCpuCount();
+
+    std::vector<std::vector<int>> data {
+            {0, 1},
+            {2, 3, 4, 5},
+            {6, 7},
+            {0, 1, 2, 3},
+            {4, 5, 6, 7},
+            {0, cpu_count - 1}};
+
+    for (auto test_data : data) {
+        cpu_set_t set;
+        CPU_ZERO(&set);
+        for (int i = 0; i < test_data.size(); ++i) {
+            auto cpu = test_data[i];
+            if (cpu >= cpu_count) {
+                cpu = cpu_count - 1;
+                test_data[i] = cpu;
+            }
+            cpu_set_t other_set;
+            CPU_ZERO(&other_set);
+            CPU_SET(cpu, &other_set);
+            CPU_OR(&set, &set, &other_set);
+        }
+        int rc = sched_setaffinity(0, sizeof(cpu_set_t), &set);
+        ASSERT_EQ(0, rc) << "sched_setaffinity failed. error = " << errno;
+        ASSERT_THAT(test_data, ::testing::Contains(sched_getcpu()))
+                << "sched_setaffinity was not respected.";
     }
 }

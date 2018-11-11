@@ -23,7 +23,8 @@ cc_test {
         "liblog",
     ],
     static_libs: [
-        "cpufeatures"
+        "cpufeatures",
+        "libgmock_ndk",
     ],
     test_suites: [
         "device-tests",
