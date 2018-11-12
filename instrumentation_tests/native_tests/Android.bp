@@ -17,17 +17,19 @@
 cc_test {
     sdk_version: "26",
     name: "GameQualificationNativeTestCases",
-    srcs: ["cpu_test.cpp"],
+    srcs: ["cpu_test.cpp", "mprotect_test.cpp"],
     stl: "libc++_static",
     shared_libs: [
         "liblog",
+        "libvulkan",
     ],
     static_libs: [
         "cpufeatures",
         "libgmock_ndk",
     ],
     test_suites: [
-        "device-tests",
+        "device-tests"
     ],
     pack_relocations: false
 }
+
