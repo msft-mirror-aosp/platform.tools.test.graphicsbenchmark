@@ -23,8 +23,9 @@ import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.support.test.InstrumentationRegistry;
 import android.util.Log;
+
+import androidx.test.InstrumentationRegistry;
 
 import com.android.game.qualification.ApkInfo;
 import com.android.game.qualification.GameCoreConfigurationXmlParser;
