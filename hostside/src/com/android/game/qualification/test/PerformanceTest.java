@@ -58,7 +58,7 @@ import javax.imageio.ImageIO;
  * sequentially.
  */
 public class PerformanceTest {
-    private static final String AJUR_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
+    private static final String AJUR_RUNNER = "androidx.test.runner.AndroidJUnitRunner";
     private static final long DEFAULT_TEST_TIMEOUT_MS = 30 * 60 * 1000L; //30min
     private static final long DEFAULT_MAX_TIMEOUT_TO_OUTPUT_MS = 30 * 60 * 1000L; //30min
 
