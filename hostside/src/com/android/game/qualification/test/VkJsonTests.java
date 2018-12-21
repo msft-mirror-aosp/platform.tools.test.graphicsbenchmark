@@ -43,8 +43,13 @@ public class VkJsonTests extends BaseHostJUnit4Test {
     }
 
     private static class VkJsonDevice {
+        VkJsonDeviceProperties properties;
         VkJsonExtDriverProperties VK_KHR_driver_properties;
         List<VkExtension> extensions;
+    }
+
+    private static class VkJsonDeviceProperties {
+        Long apiVersion;
     }
 
     private static class VkJsonExtDriverProperties {
@@ -81,6 +86,16 @@ public class VkJsonTests extends BaseHostJUnit4Test {
 
         assertThat(mVkJson.devices).isNotNull();
         assertThat(mVkJson.devices).isNotEmpty();
+    }
+
+    @Test
+    public void checkRequiredVersion() {
+        final long apiVersion = mVkJson.devices.get(0).properties.apiVersion;
+        final long vulkan11Version = 0x401000;
+        assertWithMessage("Supported Vulkan version must be at least 1.1")
+            .that(apiVersion)
+            .named("supported vulkan version")
+            .isAtLeast(vulkan11Version);
     }
 
     @Test
