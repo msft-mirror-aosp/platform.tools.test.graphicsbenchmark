@@ -174,6 +174,22 @@ public class GameQualificationResultReporter extends CollectingTestListener impl
         sb.append("Functional tests [");
         sb.append(hasFailedTests() ? "FAILED" : "PASSED");
         sb.append("]\n");
+        int testCount = 1;
+        for (TestRunResult testRunResult : getMergedTestRunResults()) {
+            for (Map.Entry<TestDescription, TestResult> entry
+                    : testRunResult.getTestResults().entrySet()) {
+                sb.append("\t[");
+                sb.append(testCount);
+                sb.append("/");
+                sb.append(getNumTotalTests());
+                sb.append("] ");
+                sb.append(entry.getKey().toString());
+                sb.append(": ");
+                sb.append(entry.getValue().getStatus().name());
+                sb.append("\n");
+                testCount++;
+            }
+        }
         if (hasFailedTests()) {
             certified = false;
             sb.append("Certification failed because the following tests failed:\n");
