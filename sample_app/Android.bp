@@ -13,13 +13,27 @@
 // limitations under the License.
 
 cc_library_shared {
-    name: "libagq",
+    name: "libgamecore_sample",
     sdk_version: "26",
-
     srcs: [
-        "agq.cpp"
+        "src/cpp/circle.cpp",
+        "src/cpp/common.cpp",
+        "src/cpp/shader.cpp",
+        "src/cpp/vecmath.cpp",
+        "src/cpp/renderer.cpp",
+        "src/cpp/main.cpp",
     ],
-    export_include_dirs: ["."],
-    shared_libs: ["liblog"],
-    pack_relocations: false
+    stl: "libc++",
+    shared_libs: [
+        "libagq",
+        "liblog",
+        "libandroid",
+        "libEGL",
+        "libGLESv2",
+    ],
+    static_libs: ["android_native_app_glue"],
+    ldflags: [
+        "-uANativeActivity_onCreate",
+    ],
+    export_include_dirs: ["src/cpp"],
 }

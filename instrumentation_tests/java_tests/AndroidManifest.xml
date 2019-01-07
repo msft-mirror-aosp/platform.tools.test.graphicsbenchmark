@@ -11,5 +11,8 @@
 
     <application>
         <uses-library android:name="android.test.runner" />
+        <activity android:name="com.android.game.qualification.tests.SurfaceFlingerTestActivity"
+            android:label="SurfaceFlingerTestActivity">
+        </activity>
     </application>
 </manifest>

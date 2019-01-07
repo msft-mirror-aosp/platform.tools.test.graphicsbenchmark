@@ -5,32 +5,27 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
-package com.android.game.qualification.example;
 
-import android.content.Context;
-import android.opengl.GLSurfaceView;
+#include "common.h"
+#include <GLES2/gl2.h>
 
-class MyGLSurfaceView extends GLSurfaceView {
+namespace android {
+namespace gamecore {
 
-    private final MyGLRenderer mRenderer;
-
-    public MyGLSurfaceView(Context context){
-        super(context);
-
-        // Create an OpenGL ES 2.0 context
-        setEGLContextClientVersion(2);
-
-        mRenderer = new MyGLRenderer();
-
-        // Set the Renderer for drawing on the GLSurfaceView
-        setRenderer(mRenderer);
+void checkGlError(const char* op) {
+    for (GLint error = glGetError(); error; error = glGetError()) {
+        LOGI("after %s() glError (0x%x)\n", op, error);
     }
 }
+
+} // end of namespace gamecore
+} // end of namespace android
