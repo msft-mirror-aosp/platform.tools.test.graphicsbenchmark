@@ -18,10 +18,18 @@ include $(CLEAR_VARS)
 
 LOCAL_PACKAGE_NAME := GameQualificationJavaTestCases
 LOCAL_SDK_VERSION := 26  # Oreo
-LOCAL_STATIC_JAVA_LIBRARIES := androidx.test.rules repackaged.android.test.base
+LOCAL_STATIC_JAVA_LIBRARIES := \
+    androidx.test.rules \
+    repackaged.android.test.base \
+    truth-prebuilt
+LOCAL_JNI_SHARED_LIBRARIES := \
+    libgamecore_sample \
+    libgamecore_java_tests_jni \
+    libagq
 LOCAL_MODULE_TAGS := tests
 LOCAL_COMPATIBILITY_SUITE := device-tests
 LOCAL_SRC_FILES := $(call all-java-files-under, src)
+LOCAL_NDK_STL_VARIANT := c++_shared
 
 include $(BUILD_PACKAGE)
 
