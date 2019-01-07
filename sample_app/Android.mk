@@ -17,21 +17,11 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SDK_VERSION := 26  # Oreo
-LOCAL_MODULE := libsample
-LOCAL_MODULE_TAGS := tests
-LOCAL_SRC_FILES := src/cpp/sample_activity.cpp
-LOCAL_SHARED_LIBRARIES := libagq
-
-include $(BUILD_SHARED_LIBRARY)
-
-include $(CLEAR_VARS)
-
-LOCAL_SDK_VERSION := 26  # Oreo
 LOCAL_PACKAGE_NAME := GameQualificationSampleApp
 LOCAL_MODULE_TAGS := tests
-LOCAL_JNI_SHARED_LIBRARIES := libagq libsample
+LOCAL_JNI_SHARED_LIBRARIES := libagq libgamecore_sample
 LOCAL_COMPATIBILITY_SUITE := device-tests
-LOCAL_SRC_FILES := $(call all-java-files-under, src/java)
+LOCAL_NDK_STL_VARIANT := c++_shared
 
 include $(BUILD_PACKAGE)
 
