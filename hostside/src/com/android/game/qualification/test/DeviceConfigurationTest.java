@@ -27,6 +27,9 @@ import org.junit.runner.RunWith;
 
 @RunWith(DeviceJUnit4ClassRunner.class)
 public class DeviceConfigurationTest extends BaseHostJUnit4Test {
+    /**
+     * CONFIG_HZ must be >= 250 to ensure system responsiveness.
+     */
     @Test
     public void testConfigHzHighEnough()
         throws DeviceNotAvailableException {

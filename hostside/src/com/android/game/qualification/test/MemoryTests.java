@@ -39,9 +39,12 @@ import java.io.InputStreamReader;
 @RunWith(DeviceJUnit4ClassRunner.class)
 public class MemoryTests extends BaseHostJUnit4Test {
 
-     @Rule
-     public TestMetrics metrics = new TestMetrics();
+    @Rule
+    public TestMetrics metrics = new TestMetrics();
 
+    /**
+     * Device must be able to allocate at least 2.3GB of memory.
+     */
     @Test
     public void testMemoryAllocationLimit()
         throws DeviceNotAvailableException, IOException {

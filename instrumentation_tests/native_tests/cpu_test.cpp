@@ -24,6 +24,9 @@
 #include <errno.h>
 #include <vector>
 
+/**
+ * Call to sched_setaffinity must be repected.
+ */
 TEST(cpu, sched_setaffinity) {
     int cpu_count =  android_getCpuCount();
     for (int cpu = 0; cpu < cpu_count; ++cpu) {
