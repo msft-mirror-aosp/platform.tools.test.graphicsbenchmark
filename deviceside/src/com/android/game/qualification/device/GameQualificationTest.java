@@ -22,11 +22,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.test.InstrumentationRegistry;
+import android.os.SystemClock;
 import android.util.Log;
 
+import androidx.test.InstrumentationRegistry;
+
 import com.android.game.qualification.ApkInfo;
-import com.android.game.qualification.ApkListXmlParser;
+import com.android.game.qualification.GameCoreConfigurationXmlParser;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,8 +54,8 @@ public class GameQualificationTest {
     public static Iterable<Object[]> data()
             throws ParserConfigurationException, SAXException, IOException {
         List<Object[]> params = new ArrayList<>();
-        ApkListXmlParser parser = new ApkListXmlParser();
-        List<ApkInfo> apks = parser.parse(new File(ApkInfo.APK_LIST_LOCATION));
+        GameCoreConfigurationXmlParser parser = new GameCoreConfigurationXmlParser();
+        List<ApkInfo> apks = parser.parse(new File(ApkInfo.APK_LIST_LOCATION)).getApkInfo();
         for (ApkInfo apk : apks) {
             params.add(new Object[] { apk.getName(), apk });
         }
@@ -86,6 +88,9 @@ public class GameQualificationTest {
         Intent intent =
                 InstrumentationRegistry.getContext().getPackageManager()
                     .getLaunchIntentForPackage(apk.getPackageName());
+        if (apk.getActivityName() != null) {
+            intent.setClassName(apk.getPackageName(), apk.getActivityName());
+        }
 
         for (ApkInfo.Argument argument : mApk.getArgs()) {
             switch(argument.getType()) {
@@ -125,12 +130,25 @@ public class GameQualificationTest {
             }
         }
 
+        mReport.appLaunched(SystemClock.uptimeMillis());
         InstrumentationRegistry.getContext().startActivity(intent);
         mHandler.postDelayed(() -> {
-            if (!mGotIntent) {
-                mHandler.getLooper().quit();
+            if (mApk.getExpectIntents()) {
+                if (!mGotIntent) {
+                    // app integrates via intents, but we've not received one yet.
+                    // we assume that the app is stuck or dead and terminate the test.
+                    mHandler.getLooper().quit();
+                }
+            } else {
+                // the app doesn't integrate properly. We assume that loading has completed
+                // by now, so produce a synthetic event here for the current timestamp, and
+                // then allow an additional mApk.getRunTime() milliseconds for the actual
+                // workload to run.
+                mReport.startLoop(SystemClock.uptimeMillis());
+                mHandler.postDelayed(() -> { mHandler.getLooper().quit(); },
+                    mApk.getRunTime());
             }
-        }, mApk.getRunTime());
+        }, mApk.getLoadTime());
         Looper.loop();
         mReport.end();
     }

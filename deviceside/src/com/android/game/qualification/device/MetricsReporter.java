@@ -32,6 +32,12 @@ public class MetricsReporter {
         this.appName = appName;
     }
 
+    public void appLaunched(long timestampMsecs) {
+        builder.addEvents(ResultDataProto.Event.newBuilder()
+                .setType(ResultDataProto.Event.Type.APP_LAUNCH)
+                .setTimestamp(timestampMsecs).build());
+    }
+
     public void startLoop(long timestampMsecs) {
         builder.addEvents(ResultDataProto.Event.newBuilder()
                 .setType(ResultDataProto.Event.Type.START_LOOP)

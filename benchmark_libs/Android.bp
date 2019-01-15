@@ -14,11 +14,12 @@
 
 cc_library_shared {
     name: "libagq",
-    sdk_version: "current",
+    sdk_version: "26",
 
     srcs: [
         "agq.cpp"
     ],
     export_include_dirs: ["."],
     shared_libs: ["liblog"],
+    pack_relocations: false
 }

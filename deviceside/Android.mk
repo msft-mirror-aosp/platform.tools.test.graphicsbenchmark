@@ -19,10 +19,9 @@ include $(CLEAR_VARS)
 LOCAL_MODULE_TAGS := tests
 LOCAL_SDK_VERSION := 26  # Oreo
 
-LOCAL_PACKAGE_NAME := GameQualificationTestCases
+LOCAL_PACKAGE_NAME := GameQualificationDevice
 
-LOCAL_STATIC_JAVA_LIBRARIES := android-support-test gamequalificationhelper
-LOCAL_JAVA_LIBRARIES := android.test.runner.stubs
+LOCAL_STATIC_JAVA_LIBRARIES := androidx.test.rules GameQualificationHelper repackaged.android.test.base
 
 LOCAL_COMPATIBILITY_SUITE := device-tests
 
