@@ -38,6 +38,7 @@ tradefed_files := \
 
 config_files := \
     $(LOCAL_PATH)/AndroidTest.xml \
+    $(LOCAL_PATH)/dist/certification-tests.xml \
     $(LOCAL_PATH)/dist/run_gamecore.sh \
     $(LOCAL_PATH)/dist/README
 
