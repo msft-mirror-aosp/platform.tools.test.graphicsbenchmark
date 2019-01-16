@@ -29,6 +29,10 @@ import org.junit.runner.RunWith;
  */
 @RunWith(AndroidJUnit4.class)
 public class DeviceStateTest {
+
+    /**
+     * Airplane mode should be enabled during certification tests.
+     */
     @Test
     public void isAirplaneModeOn() throws Settings.SettingNotFoundException {
         Assert.assertEquals(

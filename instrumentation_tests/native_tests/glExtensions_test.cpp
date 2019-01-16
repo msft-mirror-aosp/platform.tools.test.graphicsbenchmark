@@ -80,6 +80,11 @@ void shutdownEGL() {
     eglCtx = EGL_NO_CONTEXT;
 }
 
+/**
+ * The following OpenGL extensions are required:
+ *     GL_EXT_color_buffer_half_float
+ *     GL_EXT_shader_framebuffer_fetch
+ */
 TEST(glExtensions, glExtensions) {
     std::vector<std::string> neededExts {"GL_EXT_color_buffer_half_float",
                                          "GL_EXT_shader_framebuffer_fetch"};

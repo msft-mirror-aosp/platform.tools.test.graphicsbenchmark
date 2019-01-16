@@ -88,6 +88,9 @@ public class VkJsonTests extends BaseHostJUnit4Test {
         assertThat(mVkJson.devices).isNotEmpty();
     }
 
+    /**
+     * Vulkan version must be at least 1.1.
+     */
     @Test
     public void checkRequiredVersion() {
         final long apiVersion = mVkJson.devices.get(0).properties.apiVersion;
@@ -98,6 +101,11 @@ public class VkJsonTests extends BaseHostJUnit4Test {
             .isAtLeast(vulkan11Version);
     }
 
+    /**
+     * The following Vulkan extensions are required:
+     *     VK_GOOGLE_display_timing
+     *     VK_KHR_driver_properties
+     */
     @Test
     public void checkRequiredExtensions() {
         final Collection<String> REQUIRED_EXTENSIONS = Arrays.asList(
@@ -113,6 +121,9 @@ public class VkJsonTests extends BaseHostJUnit4Test {
                 .containsAllIn(REQUIRED_EXTENSIONS);
     }
 
+    /**
+     * Vulkan driver conformance must be at least 1.1.2.
+     */
     @Test
     public void checkKHRDriverProperties() {
         // Check driver conformance version is at least 1.1.2.
