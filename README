@@ -4,7 +4,6 @@ so that the path gets adjusted for tradefed.sh:
 From the root of your Android tree:
 
 $ . build/envsetup.sh
-$ . build/make/envsetup.sh
 $ lunch 2				# generic aosp arm64 eng build
 $ mmma tools/tradefederation/core tools/test/graphicsbenchmark
 
@@ -18,3 +17,8 @@ Available options include:
 file named 'apk-info.xml' exists in --apk-dir, that file will be used as the apk-info.
 
 Contact a member of the team for alternative test apks.
+
+To create a gamecore.zip for distribution, run:
+$ tapas gamecore && make dist DIST_DIR=dist
+
+This will create a gamecore.zip in the 'dist' directory.
