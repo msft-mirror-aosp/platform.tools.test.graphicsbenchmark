@@ -14,5 +14,7 @@
         <activity android:name="com.android.game.qualification.tests.SurfaceFlingerTestActivity"
             android:label="SurfaceFlingerTestActivity">
         </activity>
+        <activity android:name="com.android.game.qualification.tests.ChoreoTestActivity">
+        </activity>
     </application>
 </manifest>
