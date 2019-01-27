@@ -17,12 +17,14 @@ package com.android.game.qualification.test;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static com.google.common.truth.Truth.assert_;
 
 import com.android.tradefed.device.DeviceNotAvailableException;
 import com.android.tradefed.testtype.DeviceJUnit4ClassRunner;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -82,7 +84,14 @@ public class VkJsonTests extends BaseHostJUnit4Test {
     public void setUp() throws DeviceNotAvailableException {
         String cmdString = getDevice().executeShellCommand("cmd gpu vkjson");
         Gson gson = new Gson();
-        mVkJson = gson.fromJson(cmdString, VkJson.class);
+        try {
+            mVkJson = gson.fromJson(cmdString, VkJson.class);
+        } catch (JsonSyntaxException e) {
+            assert_().fail(
+                    "Error parsing JSON from 'cmd gpu vkjson': %s\nresult: %s",
+                    e.getMessage(),
+                    cmdString);
+        }
 
         assertThat(mVkJson.devices).isNotNull();
         assertThat(mVkJson.devices).isNotEmpty();
