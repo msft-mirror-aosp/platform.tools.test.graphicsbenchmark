@@ -105,3 +105,31 @@ TEST(glExtensions, glExtensions) {
 
     shutdownEGL();
 }
+
+/**
+ * The following EGL extensions are required:
+ *     EGL_ANDROID_get_frame_timestamps
+ *     EGL_ANDROID_presentation_time
+ *     EGL_KHR_fence_sync
+ */
+TEST(glExtensions, eglExtensions) {
+    std::vector<std::string> neededExts {"EGL_ANDROID_get_frame_timestamps",
+                                         "EGL_ANDROID_presentation_time",
+                                         "EGL_KHR_fence_sync"};
+
+    setupEGL(64,64);
+
+    std::string extString(eglQueryString(eglDisp, EGL_EXTENSIONS));
+
+    std::istringstream iss(extString);
+    //split by space
+    std::vector<std::string> availableExts(std::istream_iterator<std::string>{iss},
+                                           std::istream_iterator<std::string>());
+
+    for (auto& ext : neededExts) {
+        if (std::find(availableExts.begin(), availableExts.end(), ext) == availableExts.end())
+            ADD_FAILURE() << "Could not find the EGL extension: " << ext;
+    }
+
+    shutdownEGL();
+}
