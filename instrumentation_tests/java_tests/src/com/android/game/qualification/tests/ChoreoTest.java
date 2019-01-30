@@ -53,35 +53,32 @@ public class ChoreoTest {
         mActivityRule.finishActivity();
         activity.waitUntilDestroyed();
 
-        ArrayList<Long> frameTimes = activity.getFrametimes();
+        ArrayList<Long> intervals = activity.getFrameIntervals();
 
         double mean = 0;
         double min = Double.MAX_VALUE, max = 0;
         int maxIndex = 0;
-        ArrayList<Long> diffs = new ArrayList<>();
 
         assertWithMessage(
             "Need an adequate amount of frames in order to test Choreographer")
-            .that(frameTimes.size())
+            .that(intervals.size())
             .named("number of frames")
             .isGreaterThan(60);
 
-        // Some early frames might have misleading data.
-        for (int i = 5; i < frameTimes.size(); i++) {
-            long diff = frameTimes.get(i) - frameTimes.get(i-1);
+        for (int i = 0; i < intervals.size(); i++) {
+            long interval = intervals.get(i);
 
-            if(diff > max) {
-                max = diff;
+            if(interval > max) {
+                max = interval;
             }
 
-            if(diff < min) {
-                min = diff;
+            if(interval < min) {
+                min = interval;
             }
 
-            mean += diff;
-            diffs.add(diff);
+            mean += interval;
         }
-        mean = mean / (diffs.size() * 1E6);
+        mean = mean / (intervals.size() * 1E6);
 
         double range = (max - min) / 1E6;
 
