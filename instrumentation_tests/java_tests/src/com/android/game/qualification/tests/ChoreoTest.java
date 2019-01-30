@@ -32,8 +32,6 @@ import org.junit.Rule;
 
 import java.util.ArrayList;
 
-import android.util.Log;
-
 /**
  * Tests related to Choreographer
  */
