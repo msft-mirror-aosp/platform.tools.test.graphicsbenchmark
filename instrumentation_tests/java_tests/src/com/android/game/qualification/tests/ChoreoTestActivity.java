@@ -91,5 +91,5 @@ public class ChoreoTestActivity extends TestActivity {
     public native boolean startTheTest();
     public native boolean runTheTest(Object theSurface);
     public native void stopTheTest();
-    public native ArrayList<Long> getFrametimes();
+    public native ArrayList<Long> getFrameIntervals();
 }
