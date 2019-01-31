@@ -126,12 +126,13 @@ static void renderFrames() {
 }
 
 static volatile bool doRender = false;
-static std::vector<long> frameTimes;
+static std::vector<unsigned long> frameTimes;
 static AChoreographer* choreographer;
 static ALooper* looper;
 
 static void frameCallback(long frameTimeNanos, void*) {
-    frameTimes.push_back(frameTimeNanos);
+    // On 32-bit machine, some frametimes will come out as negative longs
+    frameTimes.push_back((unsigned long)frameTimeNanos);
     AChoreographer_postFrameCallback(choreographer, frameCallback, nullptr);
     renderFrames();
     ALooper_wake(looper);
@@ -178,7 +179,7 @@ Java_com_android_game_qualification_tests_ChoreoTestActivity_startTheTest(JNIEnv
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_android_game_qualification_tests_ChoreoTestActivity_getFrametimes(JNIEnv* env, jobject) {
+Java_com_android_game_qualification_tests_ChoreoTestActivity_getFrameIntervals(JNIEnv* env, jobject) {
     jclass arrayListClass = env->FindClass("java/util/ArrayList");
     jmethodID arrayListConstructor = env->GetMethodID(arrayListClass, "<init>", "()V");
     jmethodID addMethod = env->GetMethodID(arrayListClass, "add", "(Ljava/lang/Object;)Z");
@@ -188,9 +189,12 @@ Java_com_android_game_qualification_tests_ChoreoTestActivity_getFrametimes(JNIEn
 
     jobject list = env->NewObject(arrayListClass, arrayListConstructor);
 
-    for (long time : frameTimes) {
-        jobject javaTime = env->CallStaticObjectMethod(longClass, longValueOf, time);
-        env->CallBooleanMethod(list, addMethod, javaTime);
+    // Some early frames might have misleading data.
+    for (int i = 5; i < frameTimes.size(); ++i) {
+        jlong interval = frameTimes[i] - frameTimes[i-1];
+
+        jobject javaInterval = env->CallStaticObjectMethod(longClass, longValueOf, interval);
+        env->CallBooleanMethod(list, addMethod, javaInterval);
     }
 
     return list;
