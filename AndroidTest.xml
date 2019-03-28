@@ -26,16 +26,12 @@
         <option name="package" value="com.android.game.qualification.tests" />
     </test>
 
-    <test class="com.android.tradefed.testtype.HostTest" >
-      <option name="class" value="com.android.game.qualification.test.FunctionalTestSuite" />
-    </test>
-
     <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
         <option name="test-file-name" value="GameQualificationAllocstress.apk" />
         <option name="cleanup-apks" value="true" />
     </target_preparer>
     <test class="com.android.tradefed.testtype.HostTest" >
-      <option name="class" value="com.android.game.qualification.test.MemoryTests" />
+      <option name="class" value="com.android.game.qualification.test.FunctionalTestSuite" />
     </test>
 
     <!-- Native functional tests -->
