@@ -1,3 +1,5 @@
+Build
+-----
 Note: env setup requires slightly more than a normal Android build,
 so that the path gets adjusted for tradefed.sh:
 
@@ -18,7 +20,14 @@ file named 'apk-info.xml' exists in --apk-dir, that file will be used as the apk
 
 Contact a member of the team for alternative test apks.
 
+gamecore.zip
+------------
 To create a gamecore.zip for distribution, run:
 $ tapas gamecore && make dist DIST_DIR=dist
 
 This will create a gamecore.zip in the 'dist' directory.
+
+Testing
+-------
+To run unit tests:
+$ atest --include-subdirs --test-mapping tools/test/graphicsbenchmark:presubmit
