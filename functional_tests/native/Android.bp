@@ -39,7 +39,6 @@ cc_test {
     },
     test_suites: [
         "device-tests",
-        "gts",
     ],
     pack_relocations: false
 }
