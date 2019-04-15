@@ -24,6 +24,7 @@
     <test class="com.android.tradefed.testtype.GTest">
         <option name="native-test-device-path" value="/data/local/tmp" />
         <option name="module-name" value="GameCoreNativeTestCases" />
+        <option name="native-test-flag" value="--gamecore-certified=$(pm has-feature android.software.gamecore.preview.certified 0)" />
     </test>
 
 </configuration>
