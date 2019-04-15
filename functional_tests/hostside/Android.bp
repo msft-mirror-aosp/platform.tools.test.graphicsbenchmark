@@ -18,6 +18,7 @@ java_test_host {
 
     libs: [
         "tradefed",
+        "GameCoreHelperHost",
     ],
     static_libs: [
         "truth-prebuilt-host-jar",
