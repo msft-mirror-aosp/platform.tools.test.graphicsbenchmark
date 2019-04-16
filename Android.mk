@@ -16,9 +16,9 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
-gamecore_dist_host_jar := GameQualificationHelperHost GameQualificationHost truth-prebuilt
-gamecore_dist_test_exe := GameQualificationNativeTestCases
-gamecore_dist_test_apk := GameQualificationDevice GameQualificationSampleApp GameQualificationJavaTestCases GameQualificationAllocstress
+gamecore_dist_host_jar := GameCoreHelperHost GameCoreHostTestCases GameCorePerformanceTest truth-prebuilt
+gamecore_dist_test_exe := GameCoreNativeTestCases
+gamecore_dist_test_apk := GameCoreDevice GameCoreSampleApp GameCoreJavaTestCases GameCoreAllocStress
 
 tradefed_jars := tradefed tools-common-prebuilt
 tradefed_files := \
@@ -32,10 +32,12 @@ config_files := \
     $(LOCAL_PATH)/dist/run_gamecore.sh \
     $(LOCAL_PATH)/dist/README
 
+bit_suffix := $(if $(TARGET_IS_64_BIT),64,32)
+
 gamecore_dist_copy_pairs := $(foreach m, $(gamecore_dist_host_jar) $(tradefed_jars), \
     $(call intermediates-dir-for,JAVA_LIBRARIES,$(m),HOST,COMMON)/javalib.jar:gamecore/bin/$(m).jar)
 gamecore_dist_copy_pairs += $(foreach m, $(gamecore_dist_test_exe), \
-    $(call intermediates-dir-for,NATIVE_TESTS,$(m))/$(m):gamecore/testcases/$(TARGET_ARCH)/$(m))
+    $(call intermediates-dir-for,NATIVE_TESTS,$(m))/$(m)$(bit_suffix):gamecore/testcases/$(TARGET_ARCH)/$(m)$(bit_suffix))
 gamecore_dist_copy_pairs += $(foreach m, $(gamecore_dist_test_apk), \
     $(call intermediates-dir-for,APPS,$(m))/package.apk:gamecore/testcases/$(m).apk)
 gamecore_dist_copy_pairs += $(foreach f, $(tradefed_files),$(f):gamecore/bin/$(notdir $(f)))
@@ -47,6 +49,7 @@ gamecore_dist_test_apk :=
 tradefed_jars :=
 tradefed_files :=
 config_files :=
+bit_suffix :=
 
 gamecore_dist_intermediates := $(call intermediates-dir-for,PACKAGING,gamecore_dist,HOST,COMMON)
 gamecore_dist_zip := $(gamecore_dist_intermediates)/gamecore.zip
@@ -65,7 +68,7 @@ $(gamecore_dist_zip) : $(SOONG_ZIP) $(foreach p,$(gamecore_dist_copy_pairs),$(ca
 gamecore: $(gamecore_dist_host_jar) $(gamecore_dist_test_apk)
 
 .PHONY: gamecore-test
-gamecore-test: GameQualificationHostTest GameQualificationHelperTest
+gamecore-test: GameCorePerformanceTestTest GameCoreHelperTest
 
 .PHONY: gamecore-all
 gamecore-all: gamecore gamecore-test
