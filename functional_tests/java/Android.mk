@@ -21,7 +21,8 @@ LOCAL_SDK_VERSION := 26  # Oreo
 LOCAL_STATIC_JAVA_LIBRARIES := \
     androidx.test.rules \
     repackaged.android.test.base \
-    truth-prebuilt
+    truth-prebuilt \
+    GameCoreHelper
 LOCAL_JNI_SHARED_LIBRARIES := \
     libgamecore_sample \
     libgamecore_java_tests_jni \

@@ -17,7 +17,12 @@
 cc_test {
     sdk_version: "26",
     name: "GameCoreNativeTestCases",
-    srcs: ["cpu_test.cpp", "mprotect_test.cpp", "glExtensions_test.cpp"],
+    srcs: [
+        "main.cpp",
+        "cpu_test.cpp",
+        "mprotect_test.cpp",
+        "glExtensions_test.cpp"
+    ],
     stl: "libc++_static",
     shared_libs: [
         "liblog",
