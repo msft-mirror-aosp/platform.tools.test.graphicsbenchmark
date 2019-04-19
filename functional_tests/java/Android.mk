@@ -27,7 +27,7 @@ LOCAL_JNI_SHARED_LIBRARIES := \
     libgamecore_java_tests_jni \
     libagq
 LOCAL_MODULE_TAGS := tests
-LOCAL_COMPATIBILITY_SUITE := device-tests gts
+LOCAL_COMPATIBILITY_SUITE := device-tests
 LOCAL_SRC_FILES := $(call all-java-files-under, src)
 LOCAL_NDK_STL_VARIANT := c++_shared
 
