@@ -42,6 +42,8 @@ import static org.junit.Assert.assertTrue;
 
 @RunWith(DeviceJUnit4ClassRunner.class)
 public class MemoryTests extends BaseHostJUnit4Test {
+    // The time in ms to wait before starting logcat on NativeDevice
+    private static final int LOG_START_DELAY = 5 * 1000;
 
     @Rule
     public TestMetrics metrics = new TestMetrics();
@@ -58,6 +60,11 @@ public class MemoryTests extends BaseHostJUnit4Test {
     public void testMemoryAllocationLimit()
         throws DeviceNotAvailableException, IOException {
             getDevice().startLogcat();
+            // Wait until starting logcat for the device.
+            try {
+                Thread.sleep(LOG_START_DELAY);
+            } catch (InterruptedException e) {
+            }
             getDevice().clearLogcat();
 
             String pkgname = "com.android.game.qualification.allocstress";
