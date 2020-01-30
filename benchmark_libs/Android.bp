@@ -21,5 +21,4 @@ cc_library_shared {
     ],
     export_include_dirs: ["."],
     shared_libs: ["liblog"],
-    pack_relocations: false
 }
