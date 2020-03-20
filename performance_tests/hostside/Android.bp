@@ -26,9 +26,5 @@ java_test_host {
         "truth-prebuilt-host-jar",
         "gson-prebuilt-jar",
     ],
-
-    test_suites: [
-        "device-tests",
-    ],
 }
 
