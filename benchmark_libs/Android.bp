@@ -19,6 +19,10 @@ cc_library_shared {
     srcs: [
         "agq.cpp"
     ],
+
     export_include_dirs: ["."],
-    shared_libs: ["liblog"],
+    shared_libs: [
+        "liblog",
+        "libnativewindow",
+    ],
 }
