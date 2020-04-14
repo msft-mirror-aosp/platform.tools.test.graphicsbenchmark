@@ -21,6 +21,7 @@ cc_library_shared {
     ],
 
     export_include_dirs: ["."],
+    header_libs: ["jni_headers"],
     shared_libs: [
         "liblog",
         "libnativewindow",
