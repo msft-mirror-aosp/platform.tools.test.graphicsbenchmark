@@ -17,6 +17,7 @@ cc_test_library {
     sdk_version: "26", // Oreo
     cppflags: ["-std=c++11"],
     srcs: ["src/cpp/alloc_stress_activity.cpp"],
+    header_libs: ["jni_headers"],
     shared_libs: ["liblog"],
     stl: "c++_static",
 }
