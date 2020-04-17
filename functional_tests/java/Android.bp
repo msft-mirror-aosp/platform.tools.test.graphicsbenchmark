@@ -17,6 +17,7 @@ cc_test_library {
     sdk_version: "26", // Oreo
     srcs: ["src/cpp/surface_flinger_test_activity.cpp", "src/cpp/native_choreo_activity.cpp",],
     stl: "c++_shared",
+    header_libs: ["jni_headers"],
     shared_libs: [
         "liblog",
         "libandroid",
