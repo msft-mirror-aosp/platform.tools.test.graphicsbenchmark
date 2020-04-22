@@ -24,6 +24,7 @@ cc_library_shared {
         "src/cpp/main.cpp",
     ],
     stl: "libc++",
+    header_libs: ["jni_headers"],
     shared_libs: [
         "libagq",
         "liblog",
