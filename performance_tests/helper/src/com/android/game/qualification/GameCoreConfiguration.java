@@ -20,8 +20,6 @@ import java.util.stream.Collectors;
 
 public class GameCoreConfiguration {
 
-    public static String FEATURE_STRING = "android.software.gamecore.preview.certified";
-
     List<CertificationRequirements> mCertificationRequirements;
     List<ApkInfo> mApkInfo;
 

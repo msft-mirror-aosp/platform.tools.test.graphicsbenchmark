@@ -1,7 +1,7 @@
 {
   "presubmit": [
     {
-      "name" : "GameCoreHelperTest",
+      "name" : "GameQualificationHelperTest",
       "host" : true
     }
   ]

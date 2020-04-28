@@ -25,7 +25,6 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
-#include "testutils.h"
 
 static EGLConfig eglConf;
 static EGLSurface eglSurface;
@@ -87,8 +86,6 @@ void shutdownEGL() {
  *     GL_EXT_shader_framebuffer_fetch
  */
 TEST(glExtensions, glExtensions) {
-    ASSUME_GAMECORE_CERTIFIED();
-
     std::vector<std::string> neededExts {"GL_EXT_color_buffer_half_float",
                                          "GL_EXT_shader_framebuffer_fetch"};
 
@@ -116,8 +113,6 @@ TEST(glExtensions, glExtensions) {
  *     EGL_KHR_fence_sync
  */
 TEST(glExtensions, eglExtensions) {
-    ASSUME_GAMECORE_CERTIFIED();
-
     std::vector<std::string> neededExts {"EGL_ANDROID_get_frame_timestamps",
                                          "EGL_ANDROID_presentation_time",
                                          "EGL_KHR_fence_sync"};

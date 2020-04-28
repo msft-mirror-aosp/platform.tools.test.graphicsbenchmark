@@ -16,21 +16,21 @@
 
 package com.android.game.qualification.tests;
 
+import static com.google.common.truth.Truth.assertWithMessage;
+import com.google.common.collect.Range;
+
+import android.app.Activity;
 import androidx.test.rule.ActivityTestRule;
 import androidx.test.runner.AndroidJUnit4;
 import androidx.test.InstrumentationRegistry;
 
 import com.android.game.qualification.tests.ChoreoTestActivity;
-import com.google.common.collect.Range;
 
-import java.util.ArrayList;
-
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.Rule;
 
-import static com.google.common.truth.Truth.assertWithMessage;
+import java.util.ArrayList;
 
 /**
  * Tests related to Choreographer
@@ -40,13 +40,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 public class ChoreoTest {
 
     @Rule
-    public ActivityTestRule<ChoreoTestActivity> mActivityRule =
-            new ActivityTestRule(ChoreoTestActivity.class, false, false);
-
-    @Before
-    public void setUp() {
-        TestUtils.assumeGameCoreCertified(InstrumentationRegistry.getContext().getPackageManager());
-    }
+    public ActivityTestRule<ChoreoTestActivity> mActivityRule = new ActivityTestRule(ChoreoTestActivity.class);
 
     /**
      * Check if the differences between Choreographer callbacks are not only near the refresh rate,
@@ -54,7 +48,6 @@ public class ChoreoTest {
     */
     @Test
     public void choreoCallbackTimes() throws InterruptedException {
-        mActivityRule.launchActivity(null);
         Thread.sleep(3000);
         ChoreoTestActivity activity = mActivityRule.getActivity();
         mActivityRule.finishActivity();

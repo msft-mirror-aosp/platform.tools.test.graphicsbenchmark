@@ -211,10 +211,6 @@ public class GameQualificationHostsideController implements
 
     @Override
     public void run(ITestInvocationListener listener) throws DeviceNotAvailableException {
-        // Configuration can null if trigger by TEST_MAPPING.
-        if (mConfiguration == null) {
-            return;
-        }
         // Find result reporter
         if (mResultReporter == null) {
             for (ITestInvocationListener testListener

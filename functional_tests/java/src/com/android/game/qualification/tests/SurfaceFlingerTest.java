@@ -15,17 +15,14 @@
  */
 package com.android.game.qualification.tests;
 
-import androidx.test.InstrumentationRegistry;
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import androidx.test.rule.ActivityTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import static org.junit.Assume.assumeTrue;
-import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Tests related to the surface flinger.
@@ -35,12 +32,7 @@ public class SurfaceFlingerTest {
 
     @Rule
     public final ActivityTestRule<SurfaceFlingerTestActivity> mActivityRule =
-            new ActivityTestRule<>(SurfaceFlingerTestActivity.class, false, false);
-
-    @Before
-    public void setUp() {
-        TestUtils.assumeGameCoreCertified(InstrumentationRegistry.getContext().getPackageManager());
-    }
+            new ActivityTestRule<>(SurfaceFlingerTestActivity.class);
 
     /**
      * Check surface flinger does not latch a frame before the GPU work is completed.
@@ -50,7 +42,6 @@ public class SurfaceFlingerTest {
      */
     @Test
     public void latchAfterReady() throws InterruptedException {
-        mActivityRule.launchActivity(null);
         // Let the activity run for a few seconds.
         Thread.sleep(3000);
         SurfaceFlingerTestActivity activity = mActivityRule.getActivity();
