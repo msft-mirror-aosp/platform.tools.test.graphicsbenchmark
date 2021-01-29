@@ -42,9 +42,9 @@ java_library_host {
 java_test_host {
     name: "GameCoreHelperTest",
     srcs: ["test/**/*.java"],
-    test_suites: [
-        "general-tests"
-    ],
+    test_options: {
+        unit_test: true,
+    },
     libs: [
         "junit-host",
     ],
