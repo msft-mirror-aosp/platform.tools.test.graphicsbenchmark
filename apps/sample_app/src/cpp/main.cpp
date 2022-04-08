@@ -28,6 +28,7 @@
 #include <cstring>
 #include <errno.h>
 #include <initializer_list>
+#include <jni.h>
 #include <memory>
 #include <sys/time.h>
 #include <vector>

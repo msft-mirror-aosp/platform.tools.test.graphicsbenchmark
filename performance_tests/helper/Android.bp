@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
-
 java_library {
     name: "GameCoreHelper",
     srcs: [
@@ -46,9 +42,9 @@ java_library_host {
 java_test_host {
     name: "GameCoreHelperTest",
     srcs: ["test/**/*.java"],
-    test_options: {
-        unit_test: true,
-    },
+    test_suites: [
+        "general-tests"
+    ],
     libs: [
         "junit-host",
     ],

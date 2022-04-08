@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
-
 cc_library_shared {
     name: "libagq",
     sdk_version: "26",
@@ -25,7 +21,6 @@ cc_library_shared {
     ],
 
     export_include_dirs: ["."],
-    header_libs: ["jni_headers"],
     shared_libs: [
         "liblog",
         "libnativewindow",

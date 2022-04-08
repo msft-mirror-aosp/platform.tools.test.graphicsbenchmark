@@ -17,6 +17,7 @@
 #ifndef AGQ_H
 #define AGQ_H
 
+#include <jni.h>
 #include <android/native_activity.h>
 
 namespace android {
