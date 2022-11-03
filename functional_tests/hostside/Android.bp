@@ -25,7 +25,7 @@ java_test_host {
         "GameCoreHelperHost",
     ],
     static_libs: [
-        "truth-prebuilt-host-jar",
+        "truth",
     ],
     test_suites: [
         "general-tests",
