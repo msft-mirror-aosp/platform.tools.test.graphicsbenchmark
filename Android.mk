@@ -16,7 +16,7 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
-gamecore_dist_host_jar := GameCoreHelperHost GameCoreHostTestCases GameCorePerformanceTest truth-prebuilt
+gamecore_dist_host_jar := GameCoreHelperHost GameCoreHostTestCases GameCorePerformanceTest truth
 gamecore_dist_test_exe := GameCoreNativeTestCases
 gamecore_dist_test_apk := GameCoreDevice GameCoreSampleApp GameCoreJavaTestCases GameCoreAllocStress
 
