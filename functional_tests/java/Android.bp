@@ -38,7 +38,7 @@ android_test {
     sdk_version: "30",
     static_libs: [
         "androidx.test.rules",
-        "truth-prebuilt",
+        "truth",
         "GameCoreHelper",
     ],
     jni_libs: [
