@@ -15,6 +15,7 @@
 //
 
 package {
+    default_team: "trendy_team_android_gpu",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -25,7 +26,7 @@ cc_test {
         "main.cpp",
         "cpu_test.cpp",
         "mprotect_test.cpp",
-        "glExtensions_test.cpp"
+        "glExtensions_test.cpp",
     ],
     stl: "libc++_static",
     shared_libs: [
