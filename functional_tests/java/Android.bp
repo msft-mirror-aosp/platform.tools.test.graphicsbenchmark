@@ -13,6 +13,7 @@
 // limitations under the License.
 
 package {
+    default_team: "trendy_team_android_gpu",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -20,7 +21,10 @@ cc_test_library {
     name: "libgamecore_java_tests_jni",
     sdk_version: "26", // Oreo
     sdk_variant_only: true,
-    srcs: ["src/cpp/surface_flinger_test_activity.cpp", "src/cpp/native_choreo_activity.cpp",],
+    srcs: [
+        "src/cpp/surface_flinger_test_activity.cpp",
+        "src/cpp/native_choreo_activity.cpp",
+    ],
     stl: "c++_shared",
     header_libs: ["jni_headers"],
     shared_libs: [
